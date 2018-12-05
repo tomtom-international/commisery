@@ -11,7 +11,8 @@ except ImportError:
 
 __all__ = (
         'SemVer',
-        'bump_version',
+        'read_version',
+        'replace_version',
     )
 
 class _IdentifierList(tuple):
@@ -47,10 +48,10 @@ class SemVer(object):
             ver += '+' + str(self.build)
         return ver
 
-    _semver_re = re.compile(r'^(?:version=)?(?P<major>0|[1-9][0-9]*)\.(?P<minor>0|[1-9][0-9]*)\.(?P<patch>0|[1-9][0-9]*)(?:-(?P<prerelease>[-0-9a-zA-Z]+(?:\.[-0-9a-zA-Z])*))?(?:\+(?P<build>[-0-9a-zA-Z]+(?:\.[-0-9a-zA-Z])*))?$')
+    version_re = re.compile(r'^(?:version=)?(?P<major>0|[1-9][0-9]*)\.(?P<minor>0|[1-9][0-9]*)\.(?P<patch>0|[1-9][0-9]*)(?:-(?P<prerelease>[-0-9a-zA-Z]+(?:\.[-0-9a-zA-Z])*))?(?:\+(?P<build>[-0-9a-zA-Z]+(?:\.[-0-9a-zA-Z])*))?$')
     @classmethod
     def parse(cls, s):
-        m = cls._semver_re.match(s)
+        m = cls.version_re.match(s)
         if not m:
             return None
 
@@ -180,33 +181,29 @@ class SemVer(object):
     def __ge__(self, rhs):
         return rhs <= self
 
-def bump_version(workspace, file, format='semver', bump='prerelease'):
-    version = None
+_fmts = {
+        'semver': SemVer,
+    }
+
+def read_version(fname, format='semver'):
+    fmt = _fmts[format]
+
+    with open(fname, 'r') as f:
+        for line in f:
+            version = fmt.parse(line)
+            if version is not None:
+                return version
+
+def replace_version(fname, new_version):
+
     new_content = StringIO()
-    with open(file, 'r') as f:
-        for l in f:
-            ver = None
-            if format == 'semver':
-                ver = SemVer.parse(l)
-            if ver is None:
-                new_content.write(l)
-                continue
+    with open(fname, 'r') as f:
+        for line in f:
+            # Replace version in source line
+            m = new_version.version_re.match(line)
+            if m:
+                line = line[:m.start(1)] + str(new_version) + line[m.end(m.lastgroup)]
+            new_content.write(line)
 
-            assert version is None, "multiple versions are not supported"
-            version = ver
-
-            if bump:
-                version = version.next_version(bump)
-
-                # Replace version in source line
-                m = SemVer._semver_re.match(l)
-                new_line = l[:m.start(1)] + str(version) + l[m.end(m.lastgroup)]
-                new_content.write(new_line)
-
-    if bump:
-        assert version is not None, "no version found"
-        with open(file, 'w') as f:
-            f.write(new_content.getvalue())
-        echo_cmd(subprocess.check_call, ('git', 'add', file), cwd=workspace)
-
-    return version
+    with open(fname, 'w') as f:
+        f.write(new_content.getvalue())
