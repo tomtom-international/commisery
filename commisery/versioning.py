@@ -70,6 +70,68 @@ class SemVer(object):
 
         return cls(major, minor, patch, prerelease, build)
 
+    def __eq__(self, rhs):
+        if not isinstance(rhs, self.__class__):
+            return NotImplemented
+        if tuple(self)[:4] != tuple(rhs)[:4]:
+            return False
+        if self.build != rhs.build:
+            return NotImplemented
+        return True
+
+    def __ne__(self, rhs):
+        if not isinstance(rhs, self.__class__):
+            return NotImplemented
+        if tuple(self)[:4] != tuple(rhs)[:4]:
+            return True
+        if self.build != rhs.build:
+            return NotImplemented
+        return False
+
+    def __lt__(self, rhs):
+        if tuple(self)[:3] < tuple(rhs)[:3]:
+            return True
+        if tuple(self)[:3] != tuple(rhs)[:3]:
+            return False
+
+        if self.prerelease and not rhs.prerelease:
+            # Having a prerelease sorts before not having one
+            return True
+        elif not self.prerelease:
+            return False
+
+        assert self.prerelease and rhs.prerelease
+
+        for a, b in zip(self.prerelease, rhs.prerelease):
+            try:
+                a = int(a)
+            except ValueError:
+                pass
+            try:
+                b = int(b)
+            except ValueError:
+                pass
+            if isinstance(a, int) and not isinstance(b, int):
+                # Numeric identifiers sort before non-numeric ones
+                return True
+            elif isinstance(a, int) != isinstance(b, int):
+                return False
+            if a < b:
+                return True
+            elif b < a:
+                return False
+
+        return len(self.prerelease) < len(rhs.prerelease)
+
+    def __le__(self, rhs):
+        return self < rhs or self == rhs
+
+    def __gt__(self, rhs):
+        return rhs < self
+
+    def __ge__(self, rhs):
+        return rhs <= self
+
 _number_re = re.compile(r'^\d+$')
 def bump_version(workspace, file, format='semver', bump='prerelease'):
     version = None
