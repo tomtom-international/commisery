@@ -48,7 +48,7 @@ def stringify_semver(major, minor, patch, prerelease, build):
     return ver
 
 _number_re = re.compile(r'^\d+$')
-def bump_version(workspace, file, format='semver', bump='prerelease', **_):
+def bump_version(workspace, file, format='semver', bump='prerelease'):
     version = None
     new_content = StringIO()
     with open(file, 'r') as f:
