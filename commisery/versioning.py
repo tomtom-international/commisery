@@ -23,16 +23,18 @@ class SemVer(object):
     __slots__ = ('major', 'minor', 'patch', 'prerelease', 'build')
 
     def __init__(self, major, minor, patch, prerelease, build):
-        assert isinstance(major, int)
-        assert isinstance(minor, int)
-        assert isinstance(patch, int)
-
         super(SemVer, self).__init__()
         self.major      = major
         self.minor      = minor
         self.patch      = patch
-        self.prerelease = _IdentifierList(prerelease)
-        self.build      = _IdentifierList(build)
+        self.prerelease = prerelease
+        self.build      = build
+
+    def __setattr__(self, name, value):
+        if name in {'major', 'minor', 'patch'}:
+            return super(SemVer, self).__setattr__(name, int(value))
+        elif name in {'prerelease', 'build'}:
+            return super(SemVer, self).__setattr__(name, _IdentifierList(value))
 
     def __iter__(self):
         return iter(getattr(self, attr) for attr in self.__class__.__slots__)
