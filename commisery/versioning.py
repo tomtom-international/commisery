@@ -1,5 +1,4 @@
 from .execution import echo_cmd
-from collections import namedtuple
 import click
 import re
 import subprocess
@@ -11,41 +10,65 @@ except ImportError:
     from StringIO import StringIO
 
 __all__ = (
+        'SemVer',
         'bump_version',
-        'stringify_semver',
     )
 
-SemVer = namedtuple('SemVer', ('major', 'minor', 'patch', 'prerelease', 'build'))
+class _IdentifierList(tuple):
+    def __str__(self):
+        return '.'.join(self)
 
-_semver_re = re.compile(r'^(?:version=)?(?P<major>0|[1-9][0-9]*)\.(?P<minor>0|[1-9][0-9]*)\.(?P<patch>0|[1-9][0-9]*)(?:-(?P<prerelease>[-0-9a-zA-Z]+(?:\.[-0-9a-zA-Z])*))?(?:\+(?P<build>[-0-9a-zA-Z]+(?:\.[-0-9a-zA-Z])*))?$')
-def parse_semver(s):
-    m = _semver_re.match(s)
-    if not m:
-        return None
+class SemVer(object):
+    __slots__ = ('major', 'minor', 'patch', 'prerelease', 'build')
 
-    major, minor, patch, prerelease, build = m.groups()
+    def __init__(self, major, minor, patch, prerelease, build):
+        assert isinstance(major, int)
+        assert isinstance(minor, int)
+        assert isinstance(patch, int)
 
-    major, minor, patch = int(major), int(minor), int(patch)
+        super(SemVer, self).__init__()
+        self.major      = major
+        self.minor      = minor
+        self.patch      = patch
+        self.prerelease = _IdentifierList(prerelease)
+        self.build      = _IdentifierList(build)
 
-    if prerelease is None:
-        prerelease = ()
-    else:
-        prerelease = tuple(prerelease.split('.'))
+    def __iter__(self):
+        return iter(getattr(self, attr) for attr in self.__class__.__slots__)
 
-    if build is None:
-        build = ()
-    else:
-        build = tuple(build.split('.'))
+    def __repr__(self):
+        return '%s(major=%r, minor=%r, patch=%r, prerelease=%r, build=%r)' % ((self.__class__.__name__,) + tuple(self))
 
-    return SemVer(major, minor, patch, prerelease, build)
+    def __str__(self):
+        ver = '.'.join(str(x) for x in tuple(self)[:3])
+        if self.prerelease:
+            ver += '-' + str(self.prerelease)
+        if self.build:
+            ver += '+' + str(self.build)
+        return ver
 
-def stringify_semver(major, minor, patch, prerelease, build):
-    ver = '.'.join(str(x) for x in (major, minor, patch))
-    if prerelease:
-        ver += '-' + '.'.join(prerelease)
-    if build:
-        ver += '+' + '.'.join(build)
-    return ver
+    _semver_re = re.compile(r'^(?:version=)?(?P<major>0|[1-9][0-9]*)\.(?P<minor>0|[1-9][0-9]*)\.(?P<patch>0|[1-9][0-9]*)(?:-(?P<prerelease>[-0-9a-zA-Z]+(?:\.[-0-9a-zA-Z])*))?(?:\+(?P<build>[-0-9a-zA-Z]+(?:\.[-0-9a-zA-Z])*))?$')
+    @classmethod
+    def parse(cls, s):
+        m = cls._semver_re.match(s)
+        if not m:
+            return None
+
+        major, minor, patch, prerelease, build = m.groups()
+
+        major, minor, patch = int(major), int(minor), int(patch)
+
+        if prerelease is None:
+            prerelease = ()
+        else:
+            prerelease = tuple(prerelease.split('.'))
+
+        if build is None:
+            build = ()
+        else:
+            build = tuple(build.split('.'))
+
+        return cls(major, minor, patch, prerelease, build)
 
 _number_re = re.compile(r'^\d+$')
 def bump_version(workspace, file, format='semver', bump='prerelease'):
@@ -55,7 +78,7 @@ def bump_version(workspace, file, format='semver', bump='prerelease'):
         for l in f:
             ver = None
             if format == 'semver':
-                ver = parse_semver(l)
+                ver = SemVer.parse(l)
             if ver is None:
                 new_content.write(l)
                 continue
@@ -111,8 +134,8 @@ def bump_version(workspace, file, format='semver', bump='prerelease'):
                 version = SemVer(major, minor, patch, prerelease, build)
 
                 # Replace version in source line
-                m = _semver_re.match(l)
-                new_line = l[:m.start(1)] + stringify_semver(*version) + l[m.end(m.lastgroup)]
+                m = SemVer._semver_re.match(l)
+                new_line = l[:m.start(1)] + str(version) + l[m.end(m.lastgroup)]
                 new_content.write(new_line)
 
     if bump:
