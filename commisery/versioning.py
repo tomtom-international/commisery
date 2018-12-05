@@ -11,6 +11,7 @@ from io import (
 
 __all__ = (
         'SemVer',
+        'parse_git_describe_version',
         'read_version',
         'replace_version',
     )
@@ -195,6 +196,49 @@ def read_version(fname, format='semver', encoding=None):
             version = fmt.parse(line)
             if version is not None:
                 return version
+
+# NOTE: while this is a regular language, it's one who's captures cannot be described if put in a single regex
+_git_describe_commit_re = re.compile(r'^(?:(.*)-g)?([0-9a-f]+)$')
+_git_describe_distance_re = re.compile(r'^(.*)-([0-9]+)$')
+_git_describe_semver_tag_cleanup = re.compile(r'^[^0-9]+')
+def parse_git_describe_version(description, format='semver'):
+    dirty = description.endswith('-dirty')
+    if dirty:
+        description = description[:-len('-dirty')]
+
+    abbrev_commit_hash = None
+    commit_match = _git_describe_commit_re.match(description)
+    if commit_match:
+        description, abbrev_commit_hash = commit_match.groups()
+        if description is None:
+            description = ''
+
+    commit_count = None
+    count_match = _git_describe_distance_re.match(description)
+    if count_match:
+        commit_count = int(count_match.group(2))
+        tag_name = count_match.group(1)
+    else:
+        tag_name = description
+
+    assert format == 'semver', "Wrong format: {format}".format(**locals())
+    tag_version = SemVer.parse(_git_describe_semver_tag_cleanup.sub('', tag_name))
+
+    if dirty and commit_count is None:
+        # Ensure that 'dirty' commits sort before the next non-dirty commit
+        commit_count = 0
+
+    if (commit_count or dirty) and not tag_version.prerelease:
+        tag_version = tag_version.next_patch()
+
+    if commit_count:
+        tag_version.prerelease = tag_version.prerelease + (str(commit_count),)
+    if dirty:
+        dirty_date = commit_date or author_date or datetime.utcnow()
+        tag_version.prerelease = tag_version.prerelease + ('dirty', dirty_date.strftime('%Y%m%d%H%M%S'))
+    if abbrev_commit_hash != None:
+        tag_version.build = tag_version.build + ('g' + abbrev_commit_hash,)
+    return tag_version
 
 def replace_version(fname, new_version, encoding=None):
 
