@@ -70,6 +70,54 @@ class SemVer(object):
 
         return cls(major, minor, patch, prerelease, build)
 
+    def next_major(self):
+        if self.prerelease and self.minor == 0 and self.patch == 0:
+            # Just strip pre-release
+            return SemVer(self.major, self.minor, self.patch, (), ())
+
+        return SemVer(self.major + 1, 0, 0, (), ())
+
+    def next_minor(self):
+        if self.prerelease and self.patch == 0:
+            # Just strip pre-release
+            return SemVer(self.major, self.minor, self.patch, (), ())
+
+        return SemVer(self.major, self.minor + 1, 0, (), ())
+
+    def next_patch(self):
+        if self.prerelease:
+            # Just strip pre-release
+            return SemVer(self.major, self.minor, self.patch, (), ())
+
+        return SemVer(self.major, self.minor, self.patch + 1, (), ())
+
+    _number_re = re.compile(r'^(?:[1-9][0-9]*|0)$')
+    def next_prerelease(self):
+        # Find least significant numeric identifier to increment
+        increment_idx = None
+        for idx, elem in reversed(list(enumerate(self.prerelease))):
+            if self._number_re.match(elem):
+                increment_idx = idx
+                break
+        if increment_idx is None:
+            return SemVer(self.major, self.minor, self.patch, self.prerelease + ('1',), ())
+
+        # Increment only the specified identifier
+        prerelease = (
+                self.prerelease[:increment_idx]
+              + (str(int(self.prerelease[increment_idx]) + 1),)
+              + self.prerelease[increment_idx + 1:]
+            )
+        return SemVer(self.major, self.minor, self.patch, prerelease, ())
+
+    def next_version(self, bump='prerelease', *args, **kwargs):
+        return {
+                'prerelease': self.next_prerelease,
+                'patch'     : self.next_patch     ,
+                'minor'     : self.next_minor     ,
+                'major'     : self.next_major     ,
+            }[bump](*args, **kwargs)
+
     def __eq__(self, rhs):
         if not isinstance(rhs, self.__class__):
             return NotImplemented
@@ -132,7 +180,6 @@ class SemVer(object):
     def __ge__(self, rhs):
         return rhs <= self
 
-_number_re = re.compile(r'^\d+$')
 def bump_version(workspace, file, format='semver', bump='prerelease'):
     version = None
     new_content = StringIO()
@@ -149,51 +196,7 @@ def bump_version(workspace, file, format='semver', bump='prerelease'):
             version = ver
 
             if bump:
-                major, minor, patch, prerelease, build = version
-
-                if bump == 'prerelease':
-                    increment_idx = None
-                    for idx, elem in reversed(list(enumerate(prerelease))):
-                        if _number_re.match(elem):
-                            increment_idx = idx
-                            break
-                    if increment_idx is not None:
-                        prerelease = (
-                                prerelease[:increment_idx]
-                              + (str(int(prerelease[increment_idx]) + 1),)
-                              + prerelease[increment_idx + 1:]
-                            )
-                    else:
-                        prerelease = prerelease + ('1',)
-
-                    # When bumping the prerelease tag the build tags need to be dropped always
-                    build = ()
-                elif bump == 'patch':
-                    if not prerelease:
-                        patch += 1
-
-                    # When bumping version the prerelease and build tags need to be dropped always
-                    prerelease, build = (), ()
-                elif bump == 'minor':
-                    if not (prerelease and patch == 0):
-                        minor += 1
-                    patch = 0
-
-                    # When bumping version the prerelease and build tags need to be dropped always
-                    prerelease, build = (), ()
-                elif bump == 'major':
-                    if not (prerelease and minor == 0 and patch == 0):
-                        major += 1
-                    major = 0
-                    minor = 0
-
-                    # When bumping version the prerelease and build tags need to be dropped always
-                    prerelease, build = (), ()
-                else:
-                    click.echo("Invalid version bumping target: {bump}".format(**locals()), err=True)
-                    sys.exit(1)
-
-                version = SemVer(major, minor, patch, prerelease, build)
+                version = version.next_version(bump)
 
                 # Replace version in source line
                 m = SemVer._semver_re.match(l)
