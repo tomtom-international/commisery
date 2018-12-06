@@ -4,10 +4,10 @@ import re
 import subprocess
 import sys
 
-try:
-    from cStringIO import StringIO
-except ImportError:
-    from StringIO import StringIO
+from io import (
+        StringIO,
+        open,
+    )
 
 __all__ = (
         'SemVer',
@@ -48,7 +48,7 @@ class SemVer(object):
             ver += '+' + str(self.build)
         return ver
 
-    version_re = re.compile(r'^(?:version=)?(?P<major>0|[1-9][0-9]*)\.(?P<minor>0|[1-9][0-9]*)\.(?P<patch>0|[1-9][0-9]*)(?:-(?P<prerelease>[-0-9a-zA-Z]+(?:\.[-0-9a-zA-Z])*))?(?:\+(?P<build>[-0-9a-zA-Z]+(?:\.[-0-9a-zA-Z])*))?$')
+    version_re = re.compile(r'^(?:version=)?(?P<major>0|[1-9][0-9]*)\.(?P<minor>0|[1-9][0-9]*)\.(?P<patch>0|[1-9][0-9]*)(?:-(?P<prerelease>[-0-9a-zA-Z]+(?:\.[-0-9a-zA-Z])*))?(?:\+(?P<build>[-0-9a-zA-Z]+(?:\.[-0-9a-zA-Z])*))?\s*$')
     @classmethod
     def parse(cls, s):
         m = cls.version_re.match(s)
@@ -185,19 +185,19 @@ _fmts = {
         'semver': SemVer,
     }
 
-def read_version(fname, format='semver'):
+def read_version(fname, format='semver', encoding=None):
     fmt = _fmts[format]
 
-    with open(fname, 'r') as f:
+    with open(fname, 'r', encoding=encoding) as f:
         for line in f:
             version = fmt.parse(line)
             if version is not None:
                 return version
 
-def replace_version(fname, new_version):
+def replace_version(fname, new_version, encoding=None):
 
     new_content = StringIO()
-    with open(fname, 'r') as f:
+    with open(fname, 'r', encoding=encoding) as f:
         for line in f:
             # Replace version in source line
             m = new_version.version_re.match(line)
@@ -205,5 +205,5 @@ def replace_version(fname, new_version):
                 line = line[:m.start(1)] + str(new_version) + line[m.end(m.lastgroup)]
             new_content.write(line)
 
-    with open(fname, 'w') as f:
+    with open(fname, 'w', encoding=encoding) as f:
         f.write(new_content.getvalue())
