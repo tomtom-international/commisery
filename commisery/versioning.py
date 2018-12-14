@@ -1,5 +1,6 @@
 from .execution import echo_cmd
 import click
+from datetime import datetime
 import re
 import subprocess
 import sys
@@ -201,7 +202,7 @@ def read_version(fname, format='semver', encoding=None):
 _git_describe_commit_re = re.compile(r'^(?:(.*)-g)?([0-9a-f]+)$')
 _git_describe_distance_re = re.compile(r'^(.*)-([0-9]+)$')
 _git_describe_semver_tag_cleanup = re.compile(r'^[^0-9]+')
-def parse_git_describe_version(description, format='semver'):
+def parse_git_describe_version(description, format='semver', dirty_date=None):
     dirty = description.endswith('-dirty')
     if dirty:
         description = description[:-len('-dirty')]
@@ -234,7 +235,8 @@ def parse_git_describe_version(description, format='semver'):
     if commit_count:
         tag_version.prerelease = tag_version.prerelease + (str(commit_count),)
     if dirty:
-        dirty_date = commit_date or author_date or datetime.utcnow()
+        if dirty_date is None:
+            dirty_date = datetime.utcnow()
         tag_version.prerelease = tag_version.prerelease + ('dirty', dirty_date.strftime('%Y%m%d%H%M%S'))
     if abbrev_commit_hash != None:
         tag_version.build = tag_version.build + ('g' + abbrev_commit_hash,)
