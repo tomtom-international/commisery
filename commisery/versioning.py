@@ -227,10 +227,6 @@ def parse_git_describe_version(description, format='semver', dirty_date=None):
     if tag_version is None:
         return None
 
-    if dirty and commit_count is None:
-        # Ensure that 'dirty' commits sort before the next non-dirty commit
-        commit_count = 0
-
     if (commit_count or dirty) and not tag_version.prerelease:
         tag_version = tag_version.next_patch()
 
@@ -239,6 +235,9 @@ def parse_git_describe_version(description, format='semver', dirty_date=None):
     if dirty:
         if dirty_date is None:
             dirty_date = datetime.utcnow()
+        if not commit_count:
+            # Ensure that 'dirty' commits sort before the next non-dirty commit
+            tag_version.prerelease = tag_version.prerelease + ('0',)
         tag_version.prerelease = tag_version.prerelease + ('dirty', dirty_date.strftime('%Y%m%d%H%M%S'))
     if abbrev_commit_hash is not None:
         tag_version.build = tag_version.build + ('g' + abbrev_commit_hash,)
