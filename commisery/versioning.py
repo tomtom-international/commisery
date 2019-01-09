@@ -108,6 +108,10 @@ class SemVer(object):
 
     _number_re = re.compile(r'^(?:[1-9][0-9]*|0)$')
     def next_prerelease(self):
+        # Special case for if we don't have a prerelease: bump patch and seed prerelease
+        if not self.prerelease:
+            return SemVer(self.major, self.minor, self.patch + 1, ('1',), ())
+
         # Find least significant numeric identifier to increment
         increment_idx = None
         for idx, elem in reversed(list(enumerate(self.prerelease))):
