@@ -13,11 +13,11 @@
 # limitations under the License.
 
 from datetime import datetime
+import os
 import re
 from six import string_types
 
 from io import (
-        StringIO,
         open,
     )
 
@@ -267,16 +267,27 @@ def parse_git_describe_version(description, format='semver', dirty_date=None):
         tag_version.build = tag_version.build + ('g' + abbrev_commit_hash,)
     return tag_version
 
-def replace_version(fname, new_version, encoding=None):
+def replace_version(fname, new_version, encoding=None, outfile=None):
 
-    new_content = StringIO()
-    with open(fname, 'r', encoding=encoding) as f:
-        for line in f:
-            # Replace version in source line
-            m = new_version.version_re.match(line)
-            if m:
-                line = line[:m.start(1)] + str(new_version) + line[m.end(m.lastgroup)]
-            new_content.write(line)
+    if outfile is None:
+        out = open(fname + '.tmp', 'w', encoding=encoding)
+    else:
+        out = outfile
 
-    with open(fname, 'w', encoding=encoding) as f:
-        f.write(new_content.getvalue())
+    try:
+        with open(fname, 'r', encoding=encoding) as f:
+            for line in f:
+                # Replace version in source line
+                m = new_version.version_re.match(line)
+                if m:
+                    line = line[:m.start(1)] + str(new_version) + line[m.end(m.lastgroup)]
+                out.write(line)
+    except:
+        if outfile is None:
+            out.close()
+            os.remove(fname + '.tmp')
+        raise
+    else:
+        if outfile is None:
+            out.close()
+            os.rename(fname + '.tmp', fname)
