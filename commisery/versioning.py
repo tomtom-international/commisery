@@ -14,6 +14,7 @@
 
 from datetime import datetime
 import re
+from six import string_types
 
 from io import (
         StringIO,
@@ -107,10 +108,16 @@ class SemVer(object):
         return SemVer(self.major, self.minor, self.patch + 1, (), ())
 
     _number_re = re.compile(r'^(?:[1-9][0-9]*|0)$')
-    def next_prerelease(self):
+    def next_prerelease(self, seed=None):
         # Special case for if we don't have a prerelease: bump patch and seed prerelease
         if not self.prerelease:
-            return SemVer(self.major, self.minor, self.patch + 1, ('1',), ())
+            if isinstance(seed, string_types):
+                seed = (seed,)
+            elif not seed:
+                seed = ('1',)
+            seed = tuple(str(i) for i in seed)
+
+            return SemVer(self.major, self.minor, self.patch + 1, seed, ())
 
         # Find least significant numeric identifier to increment
         increment_idx = None
@@ -130,6 +137,9 @@ class SemVer(object):
         return SemVer(self.major, self.minor, self.patch, prerelease, ())
 
     def next_version(self, bump='prerelease', *args, **kwargs):
+        if bump == 'prerelease' and 'prerelease_seed' in kwargs:
+            kwargs = kwargs.copy()
+            kwargs['seed'] = kwargs.pop('prerelease_seed')
         return {
                 'prerelease': self.next_prerelease,
                 'patch'     : self.next_patch     ,
