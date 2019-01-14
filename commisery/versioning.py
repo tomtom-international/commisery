@@ -22,6 +22,7 @@ from io import (
     )
 
 __all__ = (
+        'CarVer',
         'SemVer',
         'parse_git_describe_version',
         'read_version',
@@ -209,8 +210,169 @@ class SemVer(object):
     def __ge__(self, rhs):
         return rhs <= self
 
+class CarVer(object):
+    """Caruso-specific versioning policy, overlaps with semantic versioning in syntax but definitely not compatible."""
+    __slots__ = ('major', 'minor', 'patch', 'prerelease', 'increment', 'fix')
+
+    def __init__(self, major, minor, patch, prerelease, increment, fix):
+        super(CarVer, self).__init__()
+        self.major      = major
+        self.minor      = minor
+        self.patch      = patch
+        self.prerelease = prerelease
+        self.increment  = increment
+        self.fix        = fix
+
+    def __setattr__(self, name, value):
+        if name in {'major', 'minor', 'patch', 'increment', 'fix'}:
+            return super(CarVer, self).__setattr__(name, int(value))
+        elif name in {'prerelease'}:
+            return super(CarVer, self).__setattr__(name, _IdentifierList(value))
+
+    def __iter__(self):
+        return iter(getattr(self, attr) for attr in self.__class__.__slots__)
+
+    def __repr__(self):
+        return '%s(major=%r, minor=%r, patch=%r, prerelease=%r, increment=%r, fix=%r)' % ((self.__class__.__name__,) + tuple(self))
+
+    def __str__(self):
+        ver = '.'.join(str(x) for x in tuple(self)[:3])
+        if self.prerelease:
+            ver += '-' + str(self.prerelease)
+        ver += '+PI{self.increment}.{self.fix}'.format(self=self)
+        return ver
+
+    version_re = re.compile(
+        r'^(?:version=)?'
+      + r'(?P<major>0|[1-9][0-9]*)'
+      + r'\.(?P<minor>0|[1-9][0-9]*)'
+      + r'\.(?P<patch>0|[1-9][0-9]*)'
+      + r'(?:-(?P<prerelease>[-0-9a-zA-Z]+(?:\.[-0-9a-zA-Z]+)*))?'
+      + r'\+PI(?P<increment>0|[1-9][0-9]*)\.(?P<fix>0|[1-9][0-9]*)'
+      + r'\s*$'
+    )
+
+    @classmethod
+    def parse(cls, s):
+        m = cls.version_re.match(s)
+        if not m:
+            return None
+
+        major, minor, patch, prerelease, increment, fix = m.groups()
+
+        major, minor, patch, increment, fix = int(major), int(minor), int(patch), int(increment), int(fix)
+
+        if prerelease is None:
+            prerelease = ()
+        else:
+            prerelease = tuple(prerelease.split('.'))
+
+        return cls(major, minor, patch, prerelease, increment, fix)
+
+    def next_fix(self):
+        if self.prerelease:
+            # Just strip pre-release
+            return CarVer(self.major, self.minor, self.patch, (), self.increment, self.fix)
+
+        return CarVer(self.major, self.minor, self.patch, (), self.increment, self.fix + 1)
+
+    _number_re = re.compile(r'^(?:[1-9][0-9]*|0)$')
+    def next_prerelease(self, seed=None):
+        # Special case for if we don't have a prerelease: bump patch and seed prerelease
+        if not self.prerelease:
+            if isinstance(seed, string_types):
+                seed = (seed,)
+            elif not seed:
+                seed = ('1',)
+            seed = tuple(str(i) for i in seed)
+
+            return CarVer(self.major, self.minor, self.patch, seed, self.increment, self.fix + 1)
+
+        # Find least significant numeric identifier to increment
+        increment_idx = None
+        for idx, elem in reversed(list(enumerate(self.prerelease))):
+            if self._number_re.match(elem):
+                increment_idx = idx
+                break
+        if increment_idx is None:
+            return CarVer(self.major, self.minor, self.patch, self.prerelease + ('1',), self.increment, self.fix)
+
+        # Increment only the specified identifier
+        prerelease = (
+            self.prerelease[:increment_idx]
+          + (str(int(self.prerelease[increment_idx]) + 1),)
+          + self.prerelease[increment_idx + 1:]
+        )
+        return CarVer(self.major, self.minor, self.patch, prerelease, self.increment, self.fix)
+
+    def next_version(self, bump='prerelease', *args, **kwargs):
+        if bump == 'prerelease' and 'prerelease_seed' in kwargs:
+            kwargs = kwargs.copy()
+            kwargs['seed'] = kwargs.pop('prerelease_seed')
+        return {
+            'prerelease': self.next_prerelease,
+            'fix':        self.next_fix,
+        }[bump](*args, **kwargs)
+
+    def __eq__(self, rhs):
+        if not isinstance(rhs, self.__class__):
+            return NotImplemented
+        return tuple(self) == tuple(rhs)
+
+    def __ne__(self, rhs):
+        if not isinstance(rhs, self.__class__):
+            return NotImplemented
+        return tuple(self) != tuple(rhs)
+
+    def __lt__(self, rhs):
+        lhs_t = tuple(self)[:3] + tuple(self)[4:6]
+        rhs_t = tuple(rhs)[:3] + tuple(rhs)[4:6]
+        if lhs_t < rhs_t:
+            return True
+        if lhs_t > rhs_t:
+            return False
+
+        if self.prerelease and not rhs.prerelease:
+            # Having a prerelease sorts before not having one
+            return True
+        elif not self.prerelease:
+            return False
+
+        assert self.prerelease and rhs.prerelease
+
+        for a, b in zip(self.prerelease, rhs.prerelease):
+            try:
+                a = int(a)
+            except ValueError:
+                pass
+            try:
+                b = int(b)
+            except ValueError:
+                pass
+            if isinstance(a, int) and not isinstance(b, int):
+                # Numeric identifiers sort before non-numeric ones
+                return True
+            elif isinstance(a, int) != isinstance(b, int):
+                return False
+            if a < b:
+                return True
+            elif b < a:
+                return False
+
+        return len(self.prerelease) < len(rhs.prerelease)
+
+    def __le__(self, rhs):
+        return self < rhs or self == rhs
+
+    def __gt__(self, rhs):
+        return rhs < self
+
+    def __ge__(self, rhs):
+        return rhs <= self
+
 _fmts = {
         'semver': SemVer,
+        'carver': CarVer,
     }
 
 def read_version(fname, format='semver', encoding=None):
