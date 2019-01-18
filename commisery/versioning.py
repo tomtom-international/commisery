@@ -18,22 +18,42 @@ import re
 from six import string_types
 
 from io import (
-        open,
-    )
+    open,
+)
 
 __all__ = (
-        'CarVer',
-        'SemVer',
-        'parse_git_describe_version',
-        'read_version',
-        'replace_version',
-    )
+    'CarVer',
+    'SemVer',
+    'parse_git_describe_version',
+    'read_version',
+    'replace_version',
+)
+
 
 class _IdentifierList(tuple):
     def __str__(self):
         return '.'.join(self)
 
+
 class SemVer(object):
+    """
+    Semantic versioning policy.
+
+    This policy is based on Semantic Versioning 2.0.0: https://semver.org/spec/v2.0.0.html
+
+     * Parsing and serialization is according to the syntax specified by 'semver'.
+     * Version comparison and ordering is implemented exactly as specified by 'semver'.
+     * Version incrementing is implemented exactly as specified by 'semver' for the major, minor and patch fields.
+      - 'semver' doesn't specify a strategy for incrementing of the prerelease field, thus:
+       + given a version B, constructed by incrementing the prerelease field of A
+       + and a version C, constructed by incrementing the prerelease of B
+       + and a version D, constructed by incrementing the patch field of A
+       + we ensure that:
+        * A always sorts before B; and
+        * B always sorts before C; and
+        * C always sorts before D; and
+        * that this relationship is transitive
+    """
     __slots__ = ('major', 'minor', 'patch', 'prerelease', 'build')
 
     def __init__(self, major, minor, patch, prerelease, build):
@@ -64,7 +84,16 @@ class SemVer(object):
             ver += '+' + str(self.build)
         return ver
 
-    version_re = re.compile(r'^(?:version=)?(?P<major>0|[1-9][0-9]*)\.(?P<minor>0|[1-9][0-9]*)\.(?P<patch>0|[1-9][0-9]*)(?:-(?P<prerelease>[-0-9a-zA-Z]+(?:\.[-0-9a-zA-Z]+)*))?(?:\+(?P<build>[-0-9a-zA-Z]+(?:\.[-0-9a-zA-Z]+)*))?\s*$')
+    version_re = re.compile(
+        r'^(?:version=)?'
+      + r'(?P<major>0|[1-9][0-9]*)'
+      + r'\.(?P<minor>0|[1-9][0-9]*)'
+      + r'\.(?P<patch>0|[1-9][0-9]*)'
+      + r'(?:-(?P<prerelease>[-0-9a-zA-Z]+(?:\.[-0-9a-zA-Z]+)*))?'
+      + r'(?:\+(?P<build>[-0-9a-zA-Z]+(?:\.[-0-9a-zA-Z]+)*))?'
+      + r'\s*$'
+    )
+
     @classmethod
     def parse(cls, s):
         m = cls.version_re.match(s)
@@ -131,10 +160,10 @@ class SemVer(object):
 
         # Increment only the specified identifier
         prerelease = (
-                self.prerelease[:increment_idx]
-              + (str(int(self.prerelease[increment_idx]) + 1),)
-              + self.prerelease[increment_idx + 1:]
-            )
+            self.prerelease[:increment_idx]
+          + (str(int(self.prerelease[increment_idx]) + 1),)
+          + self.prerelease[increment_idx + 1:]
+        )
         return SemVer(self.major, self.minor, self.patch, prerelease, ())
 
     def next_version(self, bump='prerelease', *args, **kwargs):
@@ -142,11 +171,11 @@ class SemVer(object):
             kwargs = kwargs.copy()
             kwargs['seed'] = kwargs.pop('prerelease_seed')
         return {
-                'prerelease': self.next_prerelease,
-                'patch'     : self.next_patch     ,
-                'minor'     : self.next_minor     ,
-                'major'     : self.next_major     ,
-            }[bump](*args, **kwargs)
+            'prerelease': self.next_prerelease,
+            'patch':      self.next_patch,
+            'minor':      self.next_minor,
+            'major':      self.next_major,
+        }[bump](*args, **kwargs)
 
     def __eq__(self, rhs):
         if not isinstance(rhs, self.__class__):
@@ -209,6 +238,7 @@ class SemVer(object):
 
     def __ge__(self, rhs):
         return rhs <= self
+
 
 class CarVer(object):
     """Caruso-specific versioning policy, overlaps with semantic versioning in syntax but definitely not compatible."""
@@ -370,10 +400,12 @@ class CarVer(object):
     def __ge__(self, rhs):
         return rhs <= self
 
+
 _fmts = {
-        'semver': SemVer,
-        'carver': CarVer,
-    }
+    'semver': SemVer,
+    'carver': CarVer,
+}
+
 
 def read_version(fname, format='semver', encoding=None):
     fmt = _fmts[format]
@@ -383,6 +415,7 @@ def read_version(fname, format='semver', encoding=None):
             version = fmt.parse(line)
             if version is not None:
                 return version
+
 
 # NOTE: while this is a regular language, it's one who's captures cannot be described if put in a single regex
 _git_describe_commit_re = re.compile(r'^(?:(.*)-g)?([0-9a-f]+)$')
@@ -429,6 +462,7 @@ def parse_git_describe_version(description, format='semver', dirty_date=None):
         tag_version.build = tag_version.build + ('g' + abbrev_commit_hash,)
     return tag_version
 
+
 def replace_version(fname, new_version, encoding=None, outfile=None):
 
     if outfile is None:
@@ -444,7 +478,7 @@ def replace_version(fname, new_version, encoding=None, outfile=None):
                 if m:
                     line = line[:m.start(1)] + str(new_version) + line[m.end(m.lastgroup)]
                 out.write(line)
-    except:
+    except:  # ignore E722 here: we re-raise, so it's not a problem
         if outfile is None:
             out.close()
             os.remove(fname + '.tmp')
