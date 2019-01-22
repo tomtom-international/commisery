@@ -22,7 +22,7 @@ from io import (
 )
 
 __all__ = (
-    'CarVer',
+    'CarusoVer',
     'SemVer',
     'parse_git_describe_version',
     'read_version',
@@ -240,12 +240,12 @@ class SemVer(object):
         return rhs <= self
 
 
-class CarVer(object):
+class CarusoVer(object):
     """Caruso-specific versioning policy, overlaps with semantic versioning in syntax but definitely not compatible."""
     __slots__ = ('major', 'minor', 'patch', 'prerelease', 'increment', 'fix')
 
     def __init__(self, major, minor, patch, prerelease, increment, fix):
-        super(CarVer, self).__init__()
+        super(CarusoVer, self).__init__()
         self.major      = major
         self.minor      = minor
         self.patch      = patch
@@ -255,9 +255,9 @@ class CarVer(object):
 
     def __setattr__(self, name, value):
         if name in {'major', 'minor', 'patch', 'increment', 'fix'}:
-            return super(CarVer, self).__setattr__(name, int(value))
+            return super(CarusoVer, self).__setattr__(name, int(value))
         elif name in {'prerelease'}:
-            return super(CarVer, self).__setattr__(name, _IdentifierList(value))
+            return super(CarusoVer, self).__setattr__(name, _IdentifierList(value))
 
     def __iter__(self):
         return iter(getattr(self, attr) for attr in self.__class__.__slots__)
@@ -302,9 +302,9 @@ class CarVer(object):
     def next_fix(self):
         if self.prerelease:
             # Just strip pre-release
-            return CarVer(self.major, self.minor, self.patch, (), self.increment, self.fix)
+            return CarusoVer(self.major, self.minor, self.patch, (), self.increment, self.fix)
 
-        return CarVer(self.major, self.minor, self.patch, (), self.increment, self.fix + 1)
+        return CarusoVer(self.major, self.minor, self.patch, (), self.increment, self.fix + 1)
 
     _number_re = re.compile(r'^(?:[1-9][0-9]*|0)$')
     def next_prerelease(self, seed=None):
@@ -316,7 +316,7 @@ class CarVer(object):
                 seed = ('1',)
             seed = tuple(str(i) for i in seed)
 
-            return CarVer(self.major, self.minor, self.patch, seed, self.increment, self.fix + 1)
+            return CarusoVer(self.major, self.minor, self.patch, seed, self.increment, self.fix + 1)
 
         # Find least significant numeric identifier to increment
         increment_idx = None
@@ -325,7 +325,7 @@ class CarVer(object):
                 increment_idx = idx
                 break
         if increment_idx is None:
-            return CarVer(self.major, self.minor, self.patch, self.prerelease + ('1',), self.increment, self.fix)
+            return CarusoVer(self.major, self.minor, self.patch, self.prerelease + ('1',), self.increment, self.fix)
 
         # Increment only the specified identifier
         prerelease = (
@@ -333,7 +333,7 @@ class CarVer(object):
           + (str(int(self.prerelease[increment_idx]) + 1),)
           + self.prerelease[increment_idx + 1:]
         )
-        return CarVer(self.major, self.minor, self.patch, prerelease, self.increment, self.fix)
+        return CarusoVer(self.major, self.minor, self.patch, prerelease, self.increment, self.fix)
 
     def next_version(self, bump='prerelease', *args, **kwargs):
         if bump == 'prerelease' and 'prerelease_seed' in kwargs:
@@ -403,7 +403,7 @@ class CarVer(object):
 
 _fmts = {
     'semver': SemVer,
-    'carver': CarVer,
+    'carver': CarusoVer,
 }
 
 
