@@ -478,7 +478,7 @@ def replace_version(fname, new_version, encoding=None, outfile=None):
                 if m:
                     line = line[:m.start(1)] + str(new_version) + line[m.end(m.lastgroup)]
                 out.write(line)
-    except:  # ignore E722 here: we re-raise, so it's not a problem
+    except:  # noqa: E722: we re-raise, so it's not a problem
         if outfile is None:
             out.close()
             os.remove(fname + '.tmp')
