@@ -55,6 +55,7 @@ class SemVer(object):
         * that this relationship is transitive
     """
     __slots__ = ('major', 'minor', 'patch', 'prerelease', 'build')
+    default_tag_name = '{version.major}.{version.minor}.{version.patch}'
 
     def __init__(self, major, minor, patch, prerelease, build):
         super(SemVer, self).__init__()
@@ -243,6 +244,7 @@ class SemVer(object):
 class CarusoVer(object):
     """Caruso-specific versioning policy, overlaps with semantic versioning in syntax but definitely not compatible."""
     __slots__ = ('major', 'minor', 'patch', 'prerelease', 'increment', 'fix')
+    default_tag_name = '{version}'
 
     def __init__(self, major, minor, patch, prerelease, increment, fix):
         super(CarusoVer, self).__init__()
