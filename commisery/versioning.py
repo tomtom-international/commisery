@@ -479,7 +479,7 @@ def replace_version(fname, new_version, encoding=None, outfile=None):
                 # Replace version in source line
                 m = new_version.version_re.match(line)
                 if m:
-                    line = line[:m.start(1)] + str(new_version) + line[m.end(m.lastgroup)]
+                    line = line[:m.start(1)] + str(new_version) + line[m.end(m.lastgroup):]
                 out.write(line)
     except:  # noqa: E722: we re-raise, so it's not a problem
         if temp is not None:
