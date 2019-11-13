@@ -244,7 +244,7 @@ class SemVer(object):
 class CarusoVer(object):
     """Caruso-specific versioning policy, overlaps with semantic versioning in syntax but definitely not compatible."""
     __slots__ = ('major', 'minor', 'patch', 'prerelease', 'increment', 'fix')
-    default_tag_name = '{version.major}{version.minor}{version.patch}+PI{version.increment}.{version.fix}'
+    default_tag_name = '{version.major}.{version.minor}.{version.patch}+PI{version.increment}.{version.fix}'
 
     def __init__(self, major, minor, patch, prerelease, increment, fix):
         super(CarusoVer, self).__init__()
