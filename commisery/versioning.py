@@ -178,6 +178,17 @@ class SemVer(object):
             'major':      self.next_major,
         }[bump](*args, **kwargs)
 
+    def next_version_for_commits(self, commits):
+        has_new_feature = False
+        for commit in commits:
+            if commit.has_breaking_change():
+                return self.next_major()
+            if commit.has_new_feature():
+                has_new_feature = True
+        if has_new_feature:
+            return self.next_minor()
+        return self.next_patch()
+
     def __eq__(self, rhs):
         if not isinstance(rhs, self.__class__):
             return NotImplemented
@@ -345,6 +356,9 @@ class CarusoVer(object):
             'prerelease': self.next_prerelease,
             'fix':        self.next_fix,
         }[bump](*args, **kwargs)
+
+    def next_version_for_commits(self, commits):
+        raise NotImplementedError
 
     def __eq__(self, rhs):
         if not isinstance(rhs, self.__class__):
