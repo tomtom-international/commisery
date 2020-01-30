@@ -15,7 +15,6 @@
 from datetime import datetime
 import os
 import re
-from six import string_types
 
 from io import (
     open,
@@ -142,7 +141,7 @@ class SemVer(object):
     def next_prerelease(self, seed=None):
         # Special case for if we don't have a prerelease: bump patch and seed prerelease
         if not self.prerelease:
-            if isinstance(seed, string_types):
+            if isinstance(seed, str):
                 seed = (seed,)
             elif not seed:
                 seed = ('1',)
@@ -323,7 +322,7 @@ class CarusoVer(object):
     def next_prerelease(self, seed=None):
         # Special case for if we don't have a prerelease: bump patch and seed prerelease
         if not self.prerelease:
-            if isinstance(seed, string_types):
+            if isinstance(seed, str):
                 seed = (seed,)
             elif not seed:
                 seed = ('1',)
