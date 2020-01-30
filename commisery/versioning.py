@@ -58,7 +58,7 @@ class SemVer(object):
     default_tag_name = '{version.major}.{version.minor}.{version.patch}'
 
     def __init__(self, major, minor, patch, prerelease, build):
-        super(SemVer, self).__init__()
+        super().__init__()
         self.major      = major
         self.minor      = minor
         self.patch      = patch
@@ -67,9 +67,9 @@ class SemVer(object):
 
     def __setattr__(self, name, value):
         if name in {'major', 'minor', 'patch'}:
-            return super(SemVer, self).__setattr__(name, int(value))
+            return super().__setattr__(name, int(value))
         elif name in {'prerelease', 'build'}:
-            return super(SemVer, self).__setattr__(name, _IdentifierList(value))
+            return super().__setattr__(name, _IdentifierList(value))
 
     def __iter__(self):
         return iter(getattr(self, attr) for attr in self.__class__.__slots__)
@@ -258,7 +258,7 @@ class CarusoVer(object):
     default_tag_name = '{version.major}.{version.minor}.{version.patch}+PI{version.increment}.{version.fix}'
 
     def __init__(self, major, minor, patch, prerelease, increment, fix):
-        super(CarusoVer, self).__init__()
+        super().__init__()
         self.major      = major
         self.minor      = minor
         self.patch      = patch
@@ -268,9 +268,9 @@ class CarusoVer(object):
 
     def __setattr__(self, name, value):
         if name in {'major', 'minor', 'patch', 'increment', 'fix'}:
-            return super(CarusoVer, self).__setattr__(name, int(value))
+            return super().__setattr__(name, int(value))
         elif name in {'prerelease'}:
-            return super(CarusoVer, self).__setattr__(name, _IdentifierList(value))
+            return super().__setattr__(name, _IdentifierList(value))
 
     def __iter__(self):
         return iter(getattr(self, attr) for attr in self.__class__.__slots__)
