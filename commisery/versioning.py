@@ -281,7 +281,7 @@ class CarusoVer(object):
         ver = '.'.join(str(x) for x in tuple(self)[:3])
         if self.prerelease:
             ver += '-' + str(self.prerelease)
-        ver += '+PI{self.increment}.{self.fix}'.format(self=self)
+        ver += f"+PI{self.increment}.{self.fix}"
         return ver
 
     version_re = re.compile(
@@ -456,7 +456,7 @@ def parse_git_describe_version(description, format='semver', dirty_date=None):
     else:
         tag_name = description
 
-    assert format == 'semver', "Wrong format: {format}".format(**locals())
+    assert format == 'semver', f"Wrong format: {format}"
     tag_version = SemVer.parse(_git_describe_semver_tag_cleanup.sub('', tag_name))
     if tag_version is None:
         return None
