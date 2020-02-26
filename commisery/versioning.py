@@ -179,14 +179,19 @@ class SemVer(object):
 
     def next_version_for_commits(self, commits):
         has_new_feature = False
+        has_fix = False
         for commit in commits:
             if commit.has_breaking_change():
                 return self.next_major()
             if commit.has_new_feature():
                 has_new_feature = True
+            if commit.has_fix():
+                has_fix = True
         if has_new_feature:
             return self.next_minor()
-        return self.next_patch()
+        elif has_fix:
+            return self.next_patch()
+        return self
 
     def __eq__(self, rhs):
         if not isinstance(rhs, self.__class__):
