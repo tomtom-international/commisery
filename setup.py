@@ -33,6 +33,11 @@ setup(
       'pytest',
     ),
     use_scm_version={"relative_to": __file__},
+    entry_points={
+      'console_scripts': [
+        'commisery-verify-msg = commisery.checking:main',
+      ],
+    },
     project_urls={
       'Source Code': 'https://github.com/tomtom-international/commisery',
     },

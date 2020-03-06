@@ -12,8 +12,8 @@ phases:
       - venv3.6/bin/python -m pip install --upgrade .
       # Require each commit message to adhere to our requirements
       - foreach: AUTOSQUASHED_COMMIT
-        sh: venv3.6/bin/python -m commisery.checking ${AUTOSQUASHED_COMMIT}
-      - venv3.6/bin/python -m commisery.checking HEAD
+        sh: venv3.6/bin/python venv3.6/bin/commisery-verify-msg ${AUTOSQUASHED_COMMIT}
+      - venv3.6/bin/python venv3.6/bin/commisery-verify-msg HEAD
 
   test:
     python3.6:
