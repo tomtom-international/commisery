@@ -33,9 +33,6 @@ setup(
       'pytest',
     ),
     use_scm_version={"relative_to": __file__},
-    scripts=(
-      '.ci/verify-commit-message.py',
-    ),
     project_urls={
       'Source Code': 'https://github.com/tomtom-international/commisery',
     },

@@ -17,10 +17,7 @@
 # This is a simplistic implementation of checking adherance to Conventional Commits https://www.conventionalcommits.org/
 
 from pathlib import Path
-import sys
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from commisery.commit import CommitMessage
+from .commit import CommitMessage
 
 from collections import namedtuple
 from functools import wraps
