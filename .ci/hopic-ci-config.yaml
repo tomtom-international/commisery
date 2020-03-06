@@ -1,0 +1,22 @@
+version:
+  tag:    'v{version.major}.{version.minor}.{version.patch}'
+  format: semver
+  bump:
+    policy: conventional-commits
+    strict: yes
+
+phases:
+  style:
+    commit-messages:
+      - python3 -m virtualenv --python=/usr/bin/python3.6 --clear venv3.6
+      - venv3.6/bin/python -m pip install --upgrade .
+      # Require each commit message to adhere to our requirements
+      - foreach: AUTOSQUASHED_COMMIT
+        sh: venv3.6/bin/python .ci/verify-commit-message.py ${AUTOSQUASHED_COMMIT}
+      - venv3.6/bin/python .ci/verify-commit-message.py HEAD
+
+  test:
+    python3.6:
+      - python3 -m virtualenv --python=/usr/bin/python3.6 --clear venv3.6
+      - junit: junit-test.xml
+        sh: venv3.6/bin/python setup.py pytest
