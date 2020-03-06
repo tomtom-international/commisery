@@ -38,6 +38,7 @@ setup(
         'commisery-verify-msg = commisery.checking:main',
       ],
     },
+    zip_safe=True,
     project_urls={
       'Source Code': 'https://github.com/tomtom-international/commisery',
     },
