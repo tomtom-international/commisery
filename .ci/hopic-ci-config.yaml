@@ -20,3 +20,14 @@ phases:
       - python3 -m virtualenv --python=/usr/bin/python3.6 --clear venv3.6
       - junit: junit-test.xml
         sh: venv3.6/bin/python setup.py pytest
+
+  publish:
+    python:
+      - run-on-change: only
+        with-credentials:
+          id: commisery-pypi
+          type: username-password
+      - python3 -m virtualenv --python=/usr/bin/python3.6 venv3.6
+      - venv3.6/bin/python -m pip install --upgrade twine
+      - venv3.6/bin/python setup.py sdist bdist_wheel
+      - venv3.6/bin/python venv3.6/bin/twine upload -u ${USERNAME} -p ${PASSWORD} --repository pypi dist/*
