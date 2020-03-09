@@ -1,0 +1,5 @@
+*.egg-info
+*.eggs
+*.py[co]
+/dist
+/junit-test.xml
