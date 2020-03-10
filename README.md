@@ -40,10 +40,21 @@ You can install this package with pip as follows:
 pip3 install --user --upgrade commisery
 ```
 
+You can verify commit messages with the included CLI tool:
+
+```sh
+$ commisery-verify-msg 8c3349528888a62382afd056eea058843dfb7690
+$ commisery-verify-msg master
+$ commisery-verify-msg .git/COMMIT_EDITMSG
+$ commisery-verify-msg my-own-message.txt
+```
+
+The exit code of that tool will be zero if and only if it found errors in the given commit message.
+
 After that you can use it as a hook in Git to check messages you wrote by creating a `.git/hooks/commit-msg` file with these contents:
 ```sh
 #!/bin/sh
-exec python3 -m commisery.checking "$@"
+exec commisery-verify-msg "$@"
 ```
 
 ## Hopic
