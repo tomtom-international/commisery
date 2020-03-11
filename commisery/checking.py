@@ -70,7 +70,7 @@ def main(argv=None):
     if len(argv) >= 2:
         commit = argv[1]
 
-    if os.path.isfile(commit) and not re.match(r'^[0-9a-fA-F]{40}$', commit):
+    if os.path.isfile(commit) and not re.match(r'^[0-9a-fA-F]{40}$', str(commit)):
         with open(commit, encoding='UTF-8') as f:
             message = CommitMessage(f.read())
     else:
