@@ -72,16 +72,25 @@ def main(argv=None):
             message = CommitMessage(f.read())
     except IOError:
         commit = subprocess.check_output(('git', 'rev-parse', commit))[:-1].decode('UTF-8')
-        message = CommitMessage(subprocess.check_output(('git', 'show', '-q', '--format=%B', commit, '--'))[:-1].decode('UTF-8'))
+        message = subprocess.check_output(('git', 'show', '-q', '--format=%B', commit, '--'))[:-1].decode('UTF-8')
 
-    errors = []
+    have_error = False
+    for error in check_commit_message(commit, message):
+        have_error = True
+        print(error, file=sys.stderr)
+    return (1 if have_error else 0)
+
+
+def check_commit_message(commit, message):
+    if isinstance(message, str):
+        message = CommitMessage(message)
 
     if not message.lines[-1]:
-        errors.append(f"\x1B[1m{commit}:{len(message.lines)}:1: \x1B[31merror\x1B[39m: commit message body is followed by empty lines\x1B[m")
+        yield f"\x1B[1m{commit}:{len(message.lines)}:1: \x1B[31merror\x1B[39m: commit message body is followed by empty lines\x1B[m"
 
     if re.match(r"^Merge (?:branch|tag) '.*?'(?:into '.*')?$", message.subject):
         # Ignore branch/tag merges
-        sys.exit(0)
+        return
 
     subject_re = re.compile(r'''
         ^
@@ -110,7 +119,7 @@ def main(argv=None):
         error = f"\x1B[1m{commit}:1:1: \x1B[31merror\x1B[39m: commit message's subject not formatted according to Conventional Commits\x1B[m\n{subject_re.pattern}\n"
         error += message.full_subject + '\n'
         error += ' ' * message.subject_start + '\x1B[32m' + '^' * max(len(message.full_subject) - message.subject_start, 1) + '\x1B[39m'
-        errors.append(error)
+        yield error
 
     def extract_match_group(match, group, start=0):
         if match is None or match.group(group) is None:
@@ -136,7 +145,7 @@ def main(argv=None):
                 error += ' ' * (pos - cur) + '^'
                 cur = pos + 1
             error += '\x1B[39m'
-            errors.append(error)
+            yield error
 
     accepted_tags = (
             'build',
@@ -161,12 +170,12 @@ def main(argv=None):
         possibilities = difflib.get_close_matches(type_tag.text, ('feat', 'fix') + accepted_tags, n=1)
         if possibilities:
             error += '\n' + possibilities[0]
-        errors.append(error)
+        yield error
 
     # 4. An optional scope MAY be provided after a type. A scope is a phrase describing a section of the codebase enclosed
     #    in parenthesis, e.g., fix(parser):
     if scope is not None:
-        complain_about_excess_space(scope)
+        yield from complain_about_excess_space(scope)
 
     # 13. If included in the type/scope prefix, breaking changes MUST be indicated by a `!` immediately before the `:`.
     #     If `!` is used, `BREAKING CHANGE: ` MAY be ommitted from the footer section, and the commit description SHALL be
@@ -175,14 +184,14 @@ def main(argv=None):
         error = f"\x1B[1m{commit}:1:{breaking.start + 1}: \x1B[31merror\x1B[39m: breaking change indicator in commit message's subject should be exactly '!'\x1B[m\n"
         error += message.full_subject + '\n'
         error += breaking.start * ' ' + '\x1B[31m' + breaking.text.find('!') * '~' + ' ' + (len(breaking.text) - 1 - breaking.text.find('!')) * '~' + '\x1B[39m'
-        errors.append(error)
+        yield error
 
     # 1. Commits MUST be prefixed with a type, ..., followed by a colon and a space.
     if separator and separator.text != ': ':
         error = f"\x1B[1m{commit}:1:{separator.start + 1}: \x1B[31merror\x1B[39m: commit message's subject lacks a ': ' separator after the type tag\x1B[m\n"
         error += message.full_subject + '\n'
         error += separator.start * ' ' + '\x1B[32m^' * max(1, separator.end - separator.start) + '\x1B[39m'
-        errors.append(error)
+        yield error
 
     # 5. A description MUST immediately follow the type/scope prefix. The description is a short description of the
     #    code changes, e.g., fix: array parsing issue when multiple spaces were contained in string.
@@ -190,7 +199,7 @@ def main(argv=None):
         error = f"\x1B[1m{commit}:1:{description.start + 1}: \x1B[31merror\x1B[39m: commit message's subject lacks a description after the type tag\x1B[m\n"
         error += message.full_subject + '\n'
         error += ' ' * description.start + '\x1B[32m^\x1B[39m'
-        errors.append(error)
+        yield error
 
     def complain_about_review_refs(component, component_start=0, lineno=0, quote_text=None):
         """
@@ -290,11 +299,11 @@ def main(argv=None):
                 
                 last = linem.end()
             error += f"\x1B[1m{commit}:{line + 1}:{start + 1}: \x1B[30mnote\x1B[39m: prefer using --fixup when fixing previous commits in the same pull request\x1B[m"
-            errors.append(error)
+            yield error
 
 
     if description is not None:
-        complain_about_excess_space(description)
+        yield from complain_about_excess_space(description)
 
         # Prevent upper casing the first letter of the first word, this is not a book-style sentence.
         title_case_re = regex.compile(r'\b[\p{Lu}\p{Lt}]\p{Ll}*(?:\s+[\p{Lu}\p{Lt}]\p{Ll}*)*\b')
@@ -309,9 +318,9 @@ def main(argv=None):
             possibilities = difflib.get_close_matches(title_case_word.text, safe_words, n=1)
             if possibilities:
                 error += f"\n\x1B[1m{commit}:1:{title_case_word.start + 1}: \x1B[30mnote\x1B[39m: did you mean {possibilities[0]!r}?\x1B[m"
-            errors.append(error)
+            yield error
 
-        complain_about_review_refs(description.text, description.start, quote_text=message.full_subject)
+        yield from complain_about_review_refs(description.text, description.start, quote_text=message.full_subject)
 
         # Our own requirements on the description
         # No JIRA tickets in the subject line, because it wastes precious screen estate (80 chars)
@@ -335,14 +344,14 @@ def main(argv=None):
                 error += ' ' * (pos - cur) + '^'
                 cur = pos + 1
             error += '\x1B[39m'
-            errors.append(error)
+            yield error
 
         # Disallow ending the description with punctuation
         if re.match(r'.*[.!?,]$', description.text):
             error = f"\x1B[1m{commit}:1:{len(message.full_subject)}: \x1B[31merror\x1B[39m: commit message's subject ends with punctuation\x1B[m\n"
             error += message.full_subject + '\n'
             error += ' ' * (len(message.full_subject) - 1) + '\x1B[32m^\x1B[39m'
-            errors.append(error)
+            yield error
 
         blacklist_start_words = (
                 'added',
@@ -391,19 +400,19 @@ def main(argv=None):
             error += message.full_subject + '\n'
             error += blacklisted.start * ' ' + '\x1B[32m^' * (blacklisted.end - blacklisted.start) + '\x1B[39m\n'
             error += f"\x1B[1m{commit}:1:{blacklisted.start + 1}: \x1B[30mnote\x1B[39m: prefer using the imperative for verbs\x1B[m"
-            errors.append(error)
+            yield error
 
     if len(message.subject) > 80:
         error = f"\x1B[1m{commit}:1:{81 + message.subject_start}: \x1B[31merror\x1B[39m: commit message's subject exceeds line length of 80 by {len(message.subject) - 80} characters\x1B[m\n"
         error += message.full_subject + '\n'
         error += ' ' * 79 + '\x1B[32m^' + '~' * (len(message.full_subject) - 80) + '\x1B[39m'
-        errors.append(error)
+        yield error
 
     if len(message.lines) > 1 and message.lines[1]:
         error = f"\x1B[1m{commit}:2:1: \x1B[31merror\x1B[39m: commit message subject and body are not separated by an empty line\x1B[m\n"
         error += message.lines[1] + '\n'
         error += '\x1B[31m' + '~' * len(message.lines[1]) + '\x1B[39m'
-        errors.append(error)
+        yield error
 
     # 8. Breaking changes MUST be indicated at the very beginning of the footer or body section of a commit. A breaking
     #    change MUST consist of the uppercase text BREAKING CHANGE, followed by a colon and a space.
@@ -429,7 +438,7 @@ def main(argv=None):
                         error += '^'
                         cur = m.start(m.lastindex) + 1
                     error += '\x1B[39m'
-                    errors.append(error)
+                    yield error
             else:
                 line_start = paragraph.rfind('\n', 0, m.start()) + 1
                 line_end = paragraph.find('\n', m.start(2))
@@ -440,14 +449,10 @@ def main(argv=None):
                 error += '\x1B[32m' + ' ' * start
                 error += ''.join('\n' if c == '\n' else '^' for c in paragraph[m.start():m.start(2)])
                 error += '\x1B[39m'
-                errors.append(error)
+                yield error
 
-        complain_about_review_refs(paragraph, lineno=lineno)
+        yield from complain_about_review_refs(paragraph, lineno=lineno)
 
-
-    for error in errors:
-        print(error, file=sys.stderr)
-    return (1 if errors else 0)
 
 if __name__ == "__main__":
     sys.exit(main())
