@@ -22,24 +22,12 @@ def strip_terminal_ctrl_codes(msg):
     return re.sub(r'\x1B\[(?:\d+(?:;\d+)*)?m', '', msg)
 
 
-def get_verification_failures(tmp_path, capsys, msg, nr=None):
-    if nr is None:
-        tmp_path /= f"msg.txt"
-    else:
-        tmp_path /= f"msg-{nr:03d}.txt"
-    with open(tmp_path, 'w', encoding='UTF-8') as f:
-        f.write(msg)
-
-    exit_code = checking.main((None, tmp_path))
-
-    out, err = capsys.readouterr()
-    sys.stdout.write(out)
+def get_verification_failures(msg, nr=None):
+    err = '\n'.join(checking.check_commit_message('test-commit', msg))
     sys.stderr.write(err)
 
-    assert out == ''
-
     diagnostics = []
-    line_re = re.compile('^' + re.escape(str(tmp_path)) + r':\d+:\d+: (?:error|note): ')
+    line_re = re.compile(r'test-commit:\d+:\d+: (?:error|note): ')
     for line in strip_terminal_ctrl_codes(err).splitlines(keepends=True):
         if line_re.match(line):
             diagnostics.append(line)
@@ -48,12 +36,11 @@ def get_verification_failures(tmp_path, capsys, msg, nr=None):
                 print((line, line_re), file=sys.stderr)
             diagnostics[-1] += line
 
-    assert diagnostics or exit_code == 0
     return diagnostics
 
 
-def test_initial_capital(tmp_path, capsys):
-    diagnostic, = get_verification_failures(tmp_path, capsys, 'fix: Change the thingy')
+def test_initial_capital():
+    diagnostic, = get_verification_failures('fix: Change the thingy')
     assert re.search(r'\btitle case\b.*\bdescription\b', diagnostic)
 
 
@@ -81,8 +68,8 @@ def test_initial_capital(tmp_path, capsys):
     'fix: edit online with Bitbucket',
     'fix: apply reviewer\'s comments',
 ))
-def test_reject_referring_to_review_comments(tmp_path, capsys, msg):
-    error, note = get_verification_failures(tmp_path, capsys, msg)
+def test_reject_referring_to_review_comments(msg):
+    error, note = get_verification_failures(msg)
     assert re.search(r'\bcontext\b.*\binstead\b.*\brefer.*\breview.*\b(?:comment|message)', error)
     assert '--fixup' in note
 
@@ -94,46 +81,46 @@ def test_reject_referring_to_review_comments(tmp_path, capsys, msg):
     'feat: implement AES-128 CTR mode en/decryption',
     'fix: ensure generated version numbers adhere to PEP-440',
 ))
-def test_accept_common_abbreviations_as_not_Jira(tmp_path, capsys, msg):
-    assert not get_verification_failures(tmp_path, capsys, msg)
+def test_accept_common_abbreviations_as_not_Jira(msg):
+    assert not get_verification_failures(msg)
 
 
-def test_accept_capital_TomTom(tmp_path, capsys):
-    assert not get_verification_failures(tmp_path, capsys, 'feat: TomTom home screen redecorated')
+def test_accept_capital_TomTom():
+    assert not get_verification_failures('feat: TomTom home screen redecorated')
 
 
-def test_type_tag_typo(tmp_path, capsys):
-    diagnostic, = get_verification_failures(tmp_path, capsys, 'impovemtn: verify the thingamajig')
+def test_type_tag_typo():
+    diagnostic, = get_verification_failures('impovemtn: verify the thingamajig')
     assert diagnostic.splitlines()[-1] == 'improvement'
 
 
-def test_scope_whitespace(tmp_path, capsys):
-    error, = get_verification_failures(tmp_path, capsys, 'improvement( verifier ): verify the thingamajig')
+def test_scope_whitespace():
+    error, = get_verification_failures('improvement( verifier ): verify the thingamajig')
     assert re.search(r'\bwhite.*space\b.*\bscope\b', error)
 
 
-def test_missing_separator(tmp_path, capsys):
-    error, = get_verification_failures(tmp_path, capsys, 'improvement verify the thingamajig')
+def test_missing_separator():
+    error, = get_verification_failures('improvement verify the thingamajig')
     assert re.search(r'\bseparator\b.*\btype\b.*\btag\b', error)
 
 
-def test_description_whitespace(tmp_path, capsys):
-    error, = get_verification_failures(tmp_path, capsys, 'improvement: verify the   thingamajig')
+def test_description_whitespace():
+    error, = get_verification_failures('improvement: verify the   thingamajig')
     assert re.search(r'\bwhite.*space\b.*\bdescription\b', error)
 
 
-def test_jira_ticket(tmp_path, capsys):
-    error, = get_verification_failures(tmp_path, capsys, 'improvement: verify the thingamajig introduced with PIPE-423')
+def test_jira_ticket():
+    error, = get_verification_failures('improvement: verify the thingamajig introduced with PIPE-423')
     assert re.search(r'\bcontains?\b.*\bjira tickets?\b', error, re.IGNORECASE)
 
 
-def test_punctuation(tmp_path, capsys):
-    error, = get_verification_failures(tmp_path, capsys, 'improvement: verify the thingamajig.')
+def test_punctuation():
+    error, = get_verification_failures('improvement: verify the thingamajig.')
     assert 'punctuation' in error
 
 
-def test_body_unseparated_from_subject(tmp_path, capsys):
-    error, = get_verification_failures(tmp_path, capsys, '''\
+def test_body_unseparated_from_subject():
+    error, = get_verification_failures('''\
 improvement: verify the thingamajig
 Hmpf
 Bla bla...
@@ -141,19 +128,19 @@ Bla bla...
     assert re.search(r'\bsubject\b.*\bbody\b.*\bseparat.*\bempty line\b', error)
 
 
-def test_non_imperative(tmp_path, capsys):
-    error, note = get_verification_failures(tmp_path, capsys, 'fix: added missing files')
+def test_non_imperative():
+    error, note = get_verification_failures('fix: added missing files')
     assert re.search(r'\bdescription\b.*\b(?:blacklisted|imperative)\b', error)
     assert 'imperative' in note
 
 
-def test_whitespace_breaking(tmp_path, capsys):
-    error, = get_verification_failures(tmp_path, capsys, 'refactor(mooh) !: revamp API to be more awesome')
+def test_whitespace_breaking():
+    error, = get_verification_failures('refactor(mooh) !: revamp API to be more awesome')
     assert re.search(r'\bbreaking change indicator\b.*\b(?:whitespace|should\b.*\bexactly)\b', error)
 
 
-def test_review_comment_spread_out_in_body(tmp_path, capsys):
-    error, note = get_verification_failures(tmp_path, capsys, '''feat: something awesome
+def test_review_comment_spread_out_in_body():
+    error, note = get_verification_failures('''feat: something awesome
 
 Perform
 some review
