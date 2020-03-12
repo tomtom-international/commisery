@@ -22,10 +22,12 @@ from .commit import CommitMessage
 from collections import namedtuple
 from functools import wraps
 from inspect import getfullargspec
+from stemming.porter2 import stem
 import difflib
 import itertools
 import os
 import re
+import regex
 import sys
 import subprocess
 from typing import (
@@ -33,14 +35,6 @@ from typing import (
         Iterable,
         Sequence,
     )
-try:
-    from stemming.porter2 import stem
-except ImportError:
-    stem = None
-try:
-    import regex
-except ImportError:
-    regex = None
 
 def type_check(f):
     @wraps(f)
@@ -204,91 +198,77 @@ def main(argv=None):
         """
 
         review_comment_ref = None
-        if stem is not None:
-            words = tuple((word.group(), stem(word.group()).lower(), word.start(), word.end()) for word in re.finditer(r'\b(?:\w|[-])+\b', component))
-            opt_prefix = frozenset({
-                    'all',
-                    'as',
-                    'code',
-                    'edit',
-                    'for',
-                    'minor',
-                    'per',
-                    'request',
-                })
-            opt_suffix = frozenset({
-                    'comment',
-                    'find',
-                    'with',
-                })
-            reference_words = frozenset({
-                    'accord',
-                    'bitbucket',
-                    'address',
-                    'appli',
-                    'chang',
-                    'fix',
-                    'implement',
-                    'incorpor',
-                    'per',
-                    'process',
-                    'resolv',
-                    'rework',
-                })
-            ref_start, ref_end = None, None
-            def encounter(word: str, opts: Sequence[str]) -> bool:
-                return bool(word in opts or difflib.get_close_matches(word, opts, cutoff=0.9))
-            for idx, (word, stemmed, start, end) in enumerate(words):
-                if stemmed not in ('review', 'onlin'):
-                    continue
-                min_idx = idx
-                while min_idx > 0 and encounter(words[min_idx-1][1], opt_prefix):
-                    min_idx -= 1
-                if min_idx > 0 and encounter(words[min_idx-1][1], reference_words):
-                    min_idx -= 1
-                    ref_start = words[min_idx][2]
-                    ref_end = end
-                max_idx = idx
-                while max_idx + 1 < len(words) and encounter(words[max_idx+1][1], opt_suffix):
-                    max_idx += 1
-                    if ref_end is not None:
-                        ref_end = max(ref_end, words[max_idx][3])
-                if max_idx + 1 < len(words) and encounter(words[max_idx+1][1], reference_words):
-                    max_idx += 1
-                    if ref_start is None:
-                        ref_start = len(component)
-                    if ref_end is None:
-                        ref_end = 0
-                    ref_start = min(ref_start, words[min_idx][2])
+        words = tuple((word.group(), stem(word.group()).lower(), word.start(), word.end()) for word in re.finditer(r'\b(?:\w|[-])+\b', component))
+        opt_prefix = frozenset({
+                'all',
+                'as',
+                'code',
+                'edit',
+                'for',
+                'minor',
+                'per',
+                'request',
+            })
+        opt_suffix = frozenset({
+                'comment',
+                'find',
+                'with',
+            })
+        reference_words = frozenset({
+                'accord',
+                'bitbucket',
+                'address',
+                'appli',
+                'chang',
+                'fix',
+                'implement',
+                'incorpor',
+                'per',
+                'process',
+                'resolv',
+                'rework',
+            })
+        ref_start, ref_end = None, None
+        def encounter(word: str, opts: Sequence[str]) -> bool:
+            return bool(word in opts or difflib.get_close_matches(word, opts, cutoff=0.9))
+        for idx, (word, stemmed, start, end) in enumerate(words):
+            if stemmed not in ('review', 'onlin'):
+                continue
+            min_idx = idx
+            while min_idx > 0 and encounter(words[min_idx-1][1], opt_prefix):
+                min_idx -= 1
+            if min_idx > 0 and encounter(words[min_idx-1][1], reference_words):
+                min_idx -= 1
+                ref_start = words[min_idx][2]
+                ref_end = end
+            max_idx = idx
+            while max_idx + 1 < len(words) and encounter(words[max_idx+1][1], opt_suffix):
+                max_idx += 1
+                if ref_end is not None:
                     ref_end = max(ref_end, words[max_idx][3])
-                if ref_start is None and ref_end is None:
-                    brace_prefix = re.match(r'^.*([(])\s*', component[:start])
-                    brace_suffix = re.match(r'\s*([)])', component[words[max_idx][3]:])
-                    if brace_prefix and brace_suffix:
-                        ref_start = brace_prefix.start(1)
-                        ref_end = brace_prefix.end(1)
-                if ref_start is None and ref_end is None:
-                    for try_idx, (try_word, try_stemmed, _, _) in enumerate(words[min_idx:max_idx+1], min_idx):
-                        if encounter(try_stemmed, reference_words):
-                            ref_start = words[min_idx][2]
-                            ref_end = words[max_idx][3]
-                            break
-                if ref_start is not None and ref_end is not None:
-                    review_comment_ref = MatchGroup(name=0, text=component[ref_start:ref_end], start=ref_start+component_start, end=ref_end+component_start)
-                    break
-        else:
-            review_comment_ref = re.search(r'''
-                (?:accord|address|apply|implement|incorporat|process|resolv|rework)(?:e|e?[sd]|ing)?\s+
-                (?:all\s+)?
-                (?:minor\s+)?
-                (?:code\s+)?
-                review(?:\s+(?:comment|finding)s?)?\b
-                |review\s+comments\s+    (?:accord|address|apply|implement|incorporat|process|resolv|rework)(?:e|e?[sd]|ing)?\s+
-                |\breview\s+rework(?:ing|ed)?\b
-                |[(] \s* review \s+ (?:comment|finding)s? \s* [)]
-                ''',
-                component, re.VERBOSE|re.IGNORECASE)
-            review_comment_ref = extract_match_group(review_comment_ref, 0, component_start)
+            if max_idx + 1 < len(words) and encounter(words[max_idx+1][1], reference_words):
+                max_idx += 1
+                if ref_start is None:
+                    ref_start = len(component)
+                if ref_end is None:
+                    ref_end = 0
+                ref_start = min(ref_start, words[min_idx][2])
+                ref_end = max(ref_end, words[max_idx][3])
+            if ref_start is None and ref_end is None:
+                brace_prefix = re.match(r'^.*([(])\s*', component[:start])
+                brace_suffix = re.match(r'\s*([)])', component[words[max_idx][3]:])
+                if brace_prefix and brace_suffix:
+                    ref_start = brace_prefix.start(1)
+                    ref_end = brace_prefix.end(1)
+            if ref_start is None and ref_end is None:
+                for try_idx, (try_word, try_stemmed, _, _) in enumerate(words[min_idx:max_idx+1], min_idx):
+                    if encounter(try_stemmed, reference_words):
+                        ref_start = words[min_idx][2]
+                        ref_end = words[max_idx][3]
+                        break
+            if ref_start is not None and ref_end is not None:
+                review_comment_ref = MatchGroup(name=0, text=component[ref_start:ref_end], start=ref_start+component_start, end=ref_end+component_start)
+                break
 
         if review_comment_ref:
             if quote_text is None:
@@ -317,10 +297,7 @@ def main(argv=None):
         complain_about_excess_space(description)
 
         # Prevent upper casing the first letter of the first word, this is not a book-style sentence.
-        if regex is None:
-            title_case_re = re.compile(r'\b[A-Z][a-z]*(?:\s+[A-Z][a-z]*)*\b')
-        else:
-            title_case_re = regex.compile(r'\b[\p{Lu}\p{Lt}]\p{Ll}*(?:\s+[\p{Lu}\p{Lt}]\p{Ll}*)*\b')
+        title_case_re = regex.compile(r'\b[\p{Lu}\p{Lt}]\p{Ll}*(?:\s+[\p{Lu}\p{Lt}]\p{Ll}*)*\b')
         title_case_word = extract_match_group(title_case_re.match(description.text), 0, description.start)
         safe_words = (
                 'TomTom',
