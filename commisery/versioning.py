@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from datetime import datetime
+import logging
 import os
 import re
 
@@ -27,6 +28,8 @@ __all__ = (
     'read_version',
     'replace_version',
 )
+
+log = logging.getLogger(__name__)
 
 
 class _IdentifierList(tuple):
@@ -462,8 +465,10 @@ def parse_git_describe_version(description, format='semver', dirty_date=None):
         tag_name = description
 
     assert format == 'semver', f"Wrong format: {format}"
-    tag_version = SemVer.parse(_git_describe_semver_tag_cleanup.sub('', tag_name))
+    version_part = _git_describe_semver_tag_cleanup.sub('', tag_name)
+    tag_version = SemVer.parse(version_part)
     if tag_version is None:
+        log.warning('Failed to parse version string %r as %s', version_part, format)
         return None
 
     if (commit_count or dirty) and not tag_version.prerelease:
