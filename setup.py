@@ -52,6 +52,9 @@ setup(
       'console_scripts': [
         'commisery-verify-msg = commisery.checking:main',
       ],
+      'hopic.plugins.yaml': [
+        'commisery = hopic.yaml.commisery:commisery',
+      ],
     },
     zip_safe=True,
     url='https://github.com/tomtom-international/commisery',
