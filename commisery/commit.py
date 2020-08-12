@@ -35,8 +35,8 @@ class CommitMessage(object):
                     hexsha = message.hexsha
             except AttributeError:
                 pass
-            if hexsha is not None:
-                self.hexsha = hexsha
+        if hexsha is not None:
+            self.hexsha = hexsha
 
         # Discover starts of lines
         self._line_index = [m.end() for m in re.finditer(self.line_separator, self.message)]
@@ -161,8 +161,8 @@ class ConventionalCommit(CommitMessage):
     (?::[ ]|[ ][#])
     ''', re.VERBOSE)
 
-    def __init__(self, message):
-        super().__init__(message)
+    def __init__(self, message, hexsha=None):
+        super().__init__(message, hexsha=hexsha)
         m = self.strict_subject_re.match(self.subject)
         if not m:
             raise RuntimeError(f"commit message's subject ({self.subject!r}) not formatted according to Conventional Commits ({self.strict_subject_re.pattern})")

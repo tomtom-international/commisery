@@ -61,6 +61,16 @@ in the output.
     assert m.paragraphs[-1].splitlines()[-1] == m.body.splitlines()[-1]
     assert m.body.splitlines()[-1] == m.message.splitlines()[-1]
 
+def test_commit_has_hexsha():
+    commit = CommitMessage('fix: something', '0000000000000000000000000000000000000000')
+    assert isinstance(commit.hexsha, str)
+
+    conventional_commit = ConventionalCommit('fix: something', '0000000000000000000000000000000000000000')
+    assert isinstance(conventional_commit.hexsha, str)
+
+    reparsed_conventional_commit = CommitMessage(commit)
+    assert isinstance(reparsed_conventional_commit.hexsha, str)
+
 def test_conventional_missing_separator():
     with pytest.raises(RuntimeError, match=r'(lack|miss).*separator'):
         ConventionalCommit('fix display config error messages without backtrace')
