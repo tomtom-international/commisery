@@ -72,5 +72,5 @@ phases:
     expanded = output['phases']['style']['commit-messages']
     assert expanded[0]['image'] is None
     commits, head = [e['sh'] for e in expanded]
-    assert 'commisery' in commits
-    assert 'commisery' in head
+    assert 'commisery.checking' in commits
+    assert head[-2:] == ['commisery.checking', 'HEAD']

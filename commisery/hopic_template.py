@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import shlex
 import sys
 
 
@@ -21,9 +20,9 @@ def commisery(volume_vars):
             {
                 'image': None,
                 'foreach': 'AUTOSQUASHED_COMMIT',
-                'sh': f"{shlex.quote(sys.executable)} -m commisery.checking ${{AUTOSQUASHED_COMMIT}}",
+                'sh': (sys.executable, '-m', 'commisery.checking', '${AUTOSQUASHED_COMMIT}'),
             },
             {
-                'sh': f"{shlex.quote(sys.executable)} -m commisery.checking HEAD",
+                'sh': (sys.executable, '-m', 'commisery.checking', 'HEAD'),
             },
         ]
