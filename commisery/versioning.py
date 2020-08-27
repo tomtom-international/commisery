@@ -1,4 +1,4 @@
-# Copyright (c) 2018 - 2019 TomTom N.V. (https://tomtom.com)
+# Copyright (c) 2018 - 2020 TomTom N.V. (https://tomtom.com)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -89,7 +89,7 @@ class SemVer(object):
 
     version_re = re.compile(
         r'^(?:version=)?'
-      + r'(?P<major>0|[1-9][0-9]*)'
+      + r'(?P<major>0|[1-9][0-9]*)'                                  # noqa: E131
       + r'\.(?P<minor>0|[1-9][0-9]*)'
       + r'\.(?P<patch>0|[1-9][0-9]*)'
       + r'(?:-(?P<prerelease>[-0-9a-zA-Z]+(?:\.[-0-9a-zA-Z]+)*))?'
@@ -141,7 +141,7 @@ class SemVer(object):
         return SemVer(self.major, self.minor, self.patch + 1, (), ())
 
     _number_re = re.compile(r'^(?:[1-9][0-9]*|0)$')
-    def next_prerelease(self, seed=None):
+    def next_prerelease(self, seed=None):  # noqa: E301 'expected 1 blank line'
         # Special case for if we don't have a prerelease: bump patch and seed prerelease
         if not self.prerelease:
             if isinstance(seed, str):
@@ -164,7 +164,7 @@ class SemVer(object):
         # Increment only the specified identifier
         prerelease = (
             self.prerelease[:increment_idx]
-          + (str(int(self.prerelease[increment_idx]) + 1),)
+          + (str(int(self.prerelease[increment_idx]) + 1),)  # noqa: E131
           + self.prerelease[increment_idx + 1:]
         )
         return SemVer(self.major, self.minor, self.patch, prerelease, ())
@@ -175,9 +175,9 @@ class SemVer(object):
             kwargs['seed'] = kwargs.pop('prerelease_seed')
         return {
             'prerelease': self.next_prerelease,
-            'patch':      self.next_patch,
-            'minor':      self.next_minor,
-            'major':      self.next_major,
+            'patch'     : self.next_patch,
+            'minor'     : self.next_minor,
+            'major'     : self.next_major,
         }[bump](*args, **kwargs)
 
     def next_version_for_commits(self, commits):
@@ -294,7 +294,7 @@ class CarusoVer(object):
 
     version_re = re.compile(
         r'^(?:version=)?'
-      + r'(?P<major>0|[1-9][0-9]*)'
+      + r'(?P<major>0|[1-9][0-9]*)'                                  # noqa: E131
       + r'\.(?P<minor>0|[1-9][0-9]*)'
       + r'\.(?P<patch>0|[1-9][0-9]*)'
       + r'(?:-(?P<prerelease>[-0-9a-zA-Z]+(?:\.[-0-9a-zA-Z]+)*))?'
@@ -327,7 +327,7 @@ class CarusoVer(object):
         return CarusoVer(self.major, self.minor, self.patch, (), self.increment, self.fix + 1)
 
     _number_re = re.compile(r'^(?:[1-9][0-9]*|0)$')
-    def next_prerelease(self, seed=None):
+    def next_prerelease(self, seed=None):  # noqa: E301 'expected 1 blank line'
         # Special case for if we don't have a prerelease: bump patch and seed prerelease
         if not self.prerelease:
             if isinstance(seed, str):
@@ -350,7 +350,7 @@ class CarusoVer(object):
         # Increment only the specified identifier
         prerelease = (
             self.prerelease[:increment_idx]
-          + (str(int(self.prerelease[increment_idx]) + 1),)
+          + (str(int(self.prerelease[increment_idx]) + 1),)  # noqa: E131
           + self.prerelease[increment_idx + 1:]
         )
         return CarusoVer(self.major, self.minor, self.patch, prerelease, self.increment, self.fix)
@@ -361,7 +361,7 @@ class CarusoVer(object):
             kwargs['seed'] = kwargs.pop('prerelease_seed')
         return {
             'prerelease': self.next_prerelease,
-            'fix':        self.next_fix,
+            'fix'       : self.next_fix,
         }[bump](*args, **kwargs)
 
     def next_version_for_commits(self, commits):
@@ -444,7 +444,7 @@ def read_version(fname, format='semver', encoding=None):
 _git_describe_commit_re = re.compile(r'^(?:(.*)-g)?([0-9a-f]+)$')
 _git_describe_distance_re = re.compile(r'^(.*)-([0-9]+)$')
 _git_describe_semver_tag_cleanup = re.compile(r'^[^0-9]+')
-def parse_git_describe_version(description, format='semver', dirty_date=None):
+def parse_git_describe_version(description, format='semver', dirty_date=None):  # noqa: E302 'expected 2 blank lines'
     dirty = description.endswith('-dirty')
     if dirty:
         description = description[:-len('-dirty')]
