@@ -73,4 +73,12 @@ phases:
       - venv/bin/python venv/bin/commisery-verify-msg HEAD
 ```
 
+This exact form can also be used through the `commisery` template:
+
+```yaml
+phases:
+  style:
+    commit-messages: !template "commisery"
+```
+
 [Conventional Commits]: https://www.conventionalcommits.org/en/v1.0.0/
