@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 2019 - 2020 TomTom N.V. (https://tomtom.com)
  *
@@ -21,7 +20,7 @@ String transform_ssh_to_https(String url)
 {
   // Rewrite SSH URLs to HTTP URLs, assuming that we don't need authentication
   def m = url =~ /^ssh:\/\/(?:\w+@)?(\w+(?:\.\w+)*\.?)(?::\d+)?\/(.+)$/
-  if (!m) {
+  if (!m && !(url =~ /^\w+:\/\/.*/)) {
     m = url =~ /^(?:\w+@)?(\w+(?:\.\w+)*\.?):(.+)$/
   }
   m.each { match ->
