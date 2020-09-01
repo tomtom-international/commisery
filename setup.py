@@ -23,6 +23,8 @@ description = re.sub(r'^\s*(?:#+[^\n]*\s*)*', r'', long_description, count=1, fl
 description = re.sub(r'\n\n.*', r'', description, flags=re.DOTALL|re.MULTILINE)
 # Eliminate link annotation
 description = re.sub(r'\[([^\]]+)\]', r'\1', description)
+# Convert line breaks into spaces
+description = description.replace('\n', ' ')
 
 setup(
     name='commisery',
