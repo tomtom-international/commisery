@@ -8,26 +8,27 @@ version:
 phases:
   style:
     commit-messages:
-      - python3 -m virtualenv --python=/usr/bin/python3.6 --clear venv3.6
-      - venv3.6/bin/python -m pip install --upgrade .
+      - python3 -m venv --clear venv3
+      - venv3/bin/python -m pip install --upgrade .
       # Require each commit message to adhere to our requirements
       - foreach: AUTOSQUASHED_COMMIT
-        sh: venv3.6/bin/python venv3.6/bin/commisery-verify-msg ${AUTOSQUASHED_COMMIT}
-      - venv3.6/bin/python venv3.6/bin/commisery-verify-msg HEAD
+        sh: venv3/bin/python venv3/bin/commisery-verify-msg ${AUTOSQUASHED_COMMIT}
+      - venv3/bin/python venv3/bin/commisery-verify-msg HEAD
 
   test:
-    python3.6:
-      - python3 -m virtualenv --python=/usr/bin/python3.6 --clear venv3.6
+    python3:
+      - python3 -m venv --clear venv3
+      - venv3/bin/python -m pip install tox
       - junit: junit-test.xml
-        sh: venv3.6/bin/python setup.py pytest
+        sh: venv3/bin/python -m tox -e py3
 
   publish:
     python:
-      - run-on-change: only
+      - run-on-change: never # re-enable when it's possible to upload for new released versions only
         with-credentials:
           id: commisery-pypi
           type: username-password
-      - python3 -m virtualenv --python=/usr/bin/python3.6 venv3.6
-      - venv3.6/bin/python -m pip install --upgrade twine
-      - venv3.6/bin/python setup.py sdist bdist_wheel
-      - venv3.6/bin/python venv3.6/bin/twine upload -u ${USERNAME} -p ${PASSWORD} --repository pypi dist/*
+      - python3 -m venv venv3
+      - venv3/bin/python -m pip install --upgrade twine wheel
+      - venv3/bin/python setup.py sdist bdist_wheel
+      - venv3/bin/python venv3/bin/twine upload -u ${USERNAME} -p ${PASSWORD} --repository pypi dist/*

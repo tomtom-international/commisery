@@ -12,25 +12,25 @@ The purpose of this is several fold:
 The latter goal usually requires your commit messages to answer these questions:
 * What: a short summary of _what_ you changed in the subject line.
 * Why: what the intended outcome of the change is (arguably the _most_ important piece of information that should go into a message).
-* How: if multiple, widely varying, options for achieving your goal where available, you also want to explain _why_ you chose for the used implementation strategy.
-  - Note that you should not explain how your change achieves your goal in your commit message.
-    That should be obvious from the code itself.
-    If you cannot achieve that clarity with the used programming language, use comments within the code instead.
-  - The commit message is primarily the place for documenting the _why_.
+* How: if multiple approaches for achieving your goal were available, you also want to explain _why_ you chose the used implementation strategy.
+    - Note that you should not explain how your change achieves your goal in your commit message.
+      That should be obvious from the code itself.
+      If you cannot achieve that clarity with the used programming language, use comments within the code instead.
+    - The commit message is primarily the place for documenting the _why_.
 
-Unfortunately checking whether these last questions get answered is also the most difficult to do automatically.
-As a result this tool only checks for a few common errors other than syntax errors:
+Unfortunately, checking whether these last questions get answered is also the most difficult to do automatically.
+This tool only checks for a few common errors other than syntax errors:
 1. Usage of Jira ticket numbers in the subject line.
-  - Because the subject line is expensive real estate every character should be most efficiently used to convey meaning to Humans.
-  - Jira ticket numbers are not equal to the tickets themselves and thus convey very little information.
-    These ticket numbers should go in message footers where tools can still extract them for automatic linking.
+    - Because the subject line is expensive real estate every character should be most efficiently used to convey meaning to humans.
+    - Jira ticket numbers are not equal to the tickets themselves and thus convey very little information.
+      These ticket numbers should go in message footers where tools can still extract them for automatic linking.
 2. Using non-imperative verb forms (adds, added or adding instead of add) in the subject line.
-  - These other forms convey no more meaning but use extra precious characters.
+    - These other forms convey no more meaning but use extra precious characters.
 3. Referring to review comments that cannot be found anywhere in the commit history itself.
-  - Commit messages should be self contained.
-    Only mentioning that a commit is created in response to a review comment, without mentioning the reasing of that comment is clearly not self contained.
-  - Whenever your workflow permits it prefer amending the original commit (or using `--fixup`) instead.
-  - If your workflow doesn't permit that, or it seems suboptimal in a given context, describe what, why and how you are changing (as mentioned before).
+    - Commit messages should be self-contained.
+      Only mentioning that a commit is created in response to a review comment, without mentioning the reasoning of that comment is clearly not self-contained.
+    - Whenever your workflow permits it, prefer amending the original commit (or using `--fixup`) instead.
+    - If your workflow doesn't permit that, or it seems suboptimal in a given context, describe what, why and how you are changing (as mentioned before).
 
 ## Installation
 
@@ -71,6 +71,14 @@ phases:
         sh: venv/bin/python venv/bin/commisery-verify-msg ${AUTOSQUASHED_COMMIT}
       # Optional: check the produced merge commit message too (this includes the PR title)
       - venv/bin/python venv/bin/commisery-verify-msg HEAD
+```
+
+This exact form can also be used through the `commisery` template:
+
+```yaml
+phases:
+  style:
+    commit-messages: !template "commisery"
 ```
 
 [Conventional Commits]: https://www.conventionalcommits.org/en/v1.0.0/
