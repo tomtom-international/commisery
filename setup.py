@@ -52,6 +52,7 @@ setup(
       ],
     },
     zip_safe=True,
+    url='https://github.com/tomtom-international/commisery',
     project_urls={
       'Source Code': 'https://github.com/tomtom-international/commisery',
     },
