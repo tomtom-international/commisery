@@ -24,7 +24,7 @@ phases:
 
   publish:
     python:
-      - run-on-change: only
+      - run-on-change: never # re-enable when it's possible to upload for new released versions only
         with-credentials:
           id: commisery-pypi
           type: username-password
