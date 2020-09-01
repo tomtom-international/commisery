@@ -13,13 +13,21 @@
 # limitations under the License.
 
 from setuptools import setup
+import re
 
 with open('README.md', encoding='UTF-8') as fh:
     long_description = fh.read()
 
+# Extract first paragraph
+description = re.sub(r'^\s*(?:#+[^\n]*\s*)*', r'', long_description, count=1, flags=re.DOTALL|re.MULTILINE)
+description = re.sub(r'\n\n.*', r'', description, flags=re.DOTALL|re.MULTILINE)
+# Eliminate link annotation
+description = re.sub(r'\[([^\]]+)\]', r'\1', description)
+
 setup(
     name='commisery',
     author='TomTom N.V.',
+    description=description,
     long_description=long_description,
     long_description_content_type='text/markdown',
     packages=('commisery',),
