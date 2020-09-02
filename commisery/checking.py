@@ -70,10 +70,13 @@ def main(argv=None):
     if len(argv) >= 2:
         commit = argv[1]
 
-    if os.path.isfile(commit) and not re.match(r'^[0-9a-fA-F]{40}$', str(commit)):
+    try:
+        if re.match(r'^[0-9a-fA-F]{40}$', str(commit)):
+            raise IOError('a full commit hash should never be treated as a file')
+
         with open(commit, encoding='UTF-8') as f:
             message = CommitMessage(f.read())
-    else:
+    except IOError:
         commit = subprocess.check_output(('git', 'rev-parse', commit))[:-1].decode('UTF-8')
         message = CommitMessage(subprocess.check_output(('git', 'show', '-q', '--format=%B', commit, '--'))[:-1].decode('UTF-8'))
 
