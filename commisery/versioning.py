@@ -16,6 +16,10 @@ from datetime import datetime
 import logging
 import os
 import re
+from typing import (
+        NamedTuple,
+        Optional,
+    )
 
 from io import (
     open,
@@ -23,8 +27,8 @@ from io import (
 
 __all__ = (
     'CarusoVer',
+    'GitVersion',
     'SemVer',
-    'parse_git_describe_version',
     'read_version',
     'replace_version',
 )
@@ -440,52 +444,64 @@ def read_version(fname, format='semver', encoding=None):
                 return version
 
 
-# NOTE: while this is a regular language, it's one who's captures cannot be described if put in a single regex
-_git_describe_commit_re = re.compile(r'^(?:(.*)-g)?([0-9a-f]+)$')
-_git_describe_distance_re = re.compile(r'^(.*)-([0-9]+)$')
-_git_describe_semver_tag_cleanup = re.compile(r'^[^0-9]+')
-def parse_git_describe_version(description, format='semver', dirty_date=None):  # noqa: E302 'expected 2 blank lines'
-    dirty = description.endswith('-dirty')
-    if dirty:
-        description = description[:-len('-dirty')]
+class GitVersion(NamedTuple):
+    tag_name     : str
+    dirty        : bool = False
+    commit_count : Optional[int] = None
+    commit_hash  : Optional[str] = None
 
-    abbrev_commit_hash = None
-    commit_match = _git_describe_commit_re.match(description)
-    if commit_match:
-        description, abbrev_commit_hash = commit_match.groups()
-        if description is None:
-            description = ''
+    # NOTE: while this is a regular language, it's one who's captures cannot be described if put in a single regex
+    _git_describe_commit_re = re.compile(r'^(?:(.*)-g)?([0-9a-f]+)$')
+    _git_describe_distance_re = re.compile(r'^(.*)-([0-9]+)$')
 
-    commit_count = None
-    count_match = _git_describe_distance_re.match(description)
-    if count_match:
-        commit_count = int(count_match.group(2))
-        tag_name = count_match.group(1)
-    else:
-        tag_name = description
+    @classmethod
+    def from_description(cls, description):
+        dirty = description.endswith('-dirty')
+        if dirty:
+            description = description[:-len('-dirty')]
 
-    assert format == 'semver', f"Wrong format: {format}"
-    version_part = _git_describe_semver_tag_cleanup.sub('', tag_name)
-    tag_version = SemVer.parse(version_part)
-    if tag_version is None:
-        log.warning('Failed to parse version string %r as %s', version_part, format)
-        return None
+        abbrev_commit_hash = None
+        commit_match = cls._git_describe_commit_re.match(description)
+        if commit_match:
+            description, abbrev_commit_hash = commit_match.groups()
+            if description is None:
+                description = ''
 
-    if (commit_count or dirty) and not tag_version.prerelease:
-        tag_version = tag_version.next_patch()
+        commit_count = None
+        count_match = cls._git_describe_distance_re.match(description)
+        if count_match:
+            commit_count = int(count_match.group(2))
+            tag_name = count_match.group(1)
+        else:
+            tag_name = description
 
-    if commit_count:
-        tag_version.prerelease = tag_version.prerelease + (str(commit_count),)
-    if dirty:
-        if dirty_date is None:
-            dirty_date = datetime.utcnow()
-        if not commit_count:
-            # Ensure that 'dirty' commits sort before the next non-dirty commit
-            tag_version.prerelease = tag_version.prerelease + ('0',)
-        tag_version.prerelease = tag_version.prerelease + ('dirty', dirty_date.strftime('%Y%m%d%H%M%S'))
-    if abbrev_commit_hash is not None:
-        tag_version.build = tag_version.build + ('g' + abbrev_commit_hash,)
-    return tag_version
+        return cls(tag_name=tag_name, dirty=dirty, commit_count=commit_count, commit_hash=abbrev_commit_hash)
+
+    _semver_tag_cleanup = re.compile(r'^[^0-9]+')
+
+    def to_version(self, format='semver', dirty_date=None):
+        assert format == 'semver', f"Wrong format: {format}"
+        version_part = self._semver_tag_cleanup.sub('', self.tag_name)
+        tag_version = SemVer.parse(version_part)
+        if tag_version is None:
+            log.warning('Failed to parse version string %r as %s', version_part, format)
+            return None
+
+        if (self.commit_count or self.dirty) and not tag_version.prerelease:
+            tag_version = tag_version.next_patch()
+
+        if self.commit_count:
+            tag_version.prerelease = tag_version.prerelease + (str(self.commit_count),)
+        if self.dirty:
+            if dirty_date is None:
+                dirty_date = datetime.utcnow()
+            if not self.commit_count:
+                # Ensure that 'dirty' commits sort before the next non-dirty commit
+                tag_version.prerelease = tag_version.prerelease + ('0',)
+            tag_version.prerelease = tag_version.prerelease + ('dirty', dirty_date.strftime('%Y%m%d%H%M%S'))
+        if self.commit_hash is not None:
+            tag_version.build = tag_version.build + ('g' + self.commit_hash,)
+        return tag_version
 
 
 def replace_version(fname, new_version, encoding=None, outfile=None):
