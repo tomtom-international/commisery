@@ -48,6 +48,9 @@ pipeline {
     choice(name:         'GIT_VERBOSITY',
            choices:      ['INFO', 'DEBUG'],
            description:  'Verbosity level to execute Git commands at.')
+    choice(name: 'MODALITY',
+           choices: 'NORMAL\nBUMP_VERSION',
+           description: 'Modality of this execution of the pipeline.')
     booleanParam(defaultValue: false,
                  description: 'Clean build',
                  name: 'CLEAN')
@@ -63,7 +66,9 @@ pipeline {
     stage("Commit Stage") {
       steps {
         script {
-          hopic.build(clean: params.CLEAN)
+          hopic.build(
+            clean: params.CLEAN || params.MODALITY != "NORMAL",
+          )
         }
       }
     }
