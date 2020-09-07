@@ -450,6 +450,10 @@ class GitVersion(NamedTuple):
     commit_count : Optional[int] = None
     commit_hash  : Optional[str] = None
 
+    @property
+    def exact(self):
+        return not self.dirty and self.commit_count == 0
+
     # NOTE: while this is a regular language, it's one who's captures cannot be described if put in a single regex
     _git_describe_commit_re = re.compile(r'^(?:(.*)-g)?([0-9a-f]+)$')
     _git_describe_distance_re = re.compile(r'^(.*)-([0-9]+)$')
