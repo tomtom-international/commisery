@@ -41,6 +41,11 @@ def hopic = getCiDriver("git+${repo}@${version}", config: '.ci/hopic-ci-config.y
 pipeline {
   agent none
 
+  triggers {
+    // Bump the version early on every Monday. Only does something if there are any bumpable changes since the last tagged version.
+    parameterizedCron(BRANCH_NAME =~ /^master$|^release\/\d+(?:\.\d+)?$/ ? 'H H(7-13) * * 1 % MODALITY=BUMP_VERSION' : '')
+  }
+
   parameters {
     choice(name:        'HOPIC_VERBOSITY',
            choices:      ['INFO', 'DEBUG'],
