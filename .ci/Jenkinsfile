@@ -31,15 +31,20 @@ String transform_ssh_to_https(String url)
 def repo = transform_ssh_to_https(scm.userRemoteConfigs[0].url.split('/')[0..-2].join('/') + '/hopic.git')
 
 library(
-    identifier: "cidriver@${version}",
+    identifier: "hopic@${version}",
     retriever: modernSCM([
         $class: 'GitSCMSource',
         remote: repo
   ]))
-def cidriver = getCiDriver("git+${repo}@${version}", config: '.ci/hopic-ci-config.yaml')
+def hopic = getCiDriver("git+${repo}@${version}", config: '.ci/hopic-ci-config.yaml')
 
 pipeline {
   agent none
+
+  triggers {
+    // Bump the version early on every Monday. Only does something if there are any bumpable changes since the last tagged version.
+    parameterizedCron(BRANCH_NAME =~ /^master$|^release\/\d+(?:\.\d+)?$/ ? 'H H(7-13) * * 1 % MODALITY=BUMP_VERSION' : '')
+  }
 
   parameters {
     choice(name:        'HOPIC_VERBOSITY',
@@ -48,6 +53,9 @@ pipeline {
     choice(name:         'GIT_VERBOSITY',
            choices:      ['INFO', 'DEBUG'],
            description:  'Verbosity level to execute Git commands at.')
+    choice(name: 'MODALITY',
+           choices: 'NORMAL\nBUMP_VERSION',
+           description: 'Modality of this execution of the pipeline.')
     booleanParam(defaultValue: false,
                  description: 'Clean build',
                  name: 'CLEAN')
@@ -63,7 +71,9 @@ pipeline {
     stage("Commit Stage") {
       steps {
         script {
-          cidriver.build(clean: params.CLEAN)
+          hopic.build(
+            clean: params.CLEAN || params.MODALITY != "NORMAL",
+          )
         }
       }
     }

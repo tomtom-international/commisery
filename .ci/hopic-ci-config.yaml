@@ -4,6 +4,7 @@ version:
   bump:
     policy: conventional-commits
     strict: yes
+    on-every-change: no
 
 phases:
   style:
