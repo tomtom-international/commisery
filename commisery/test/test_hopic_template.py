@@ -12,12 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from click.testing import CliRunner
 from collections import OrderedDict
-import git
 import json
 import os
+import re
 import sys
+
+import pytest
 
 try:
     # Python >= 3.8
@@ -25,7 +26,17 @@ try:
 except ImportError:
     import importlib_metadata as metadata
 
-hopic_cli = [ep for ep in metadata.entry_points()['console_scripts'] if ep.name == 'hopic'][0].load()
+
+try:
+    _hopic_version = tuple(
+            (int(x) if re.match('^[0-9]+$', x) else x)
+            for x in metadata.version('hopic').split('.')
+        )
+    hopic_cli = [ep for ep in metadata.entry_points()['console_scripts'] if ep.name == 'hopic'][0].load()
+    from click.testing import CliRunner
+    import git
+except metadata.PackageNotFoundError:
+    _hopic_version = ()
 
 _git_time = f"{7 * 24 * 3600} +0000"
 
@@ -60,6 +71,7 @@ def run_with_config(config, args, files={}, env=None, cfg_file='hopic-ci-config.
     return result
 
 
+@pytest.mark.skipif(_hopic_version < (1,15), reason="Hopic >= 1.15.0 not available")
 def test_commisery_template(capfd):
     result = run_with_config('''\
 phases:
