@@ -53,7 +53,7 @@ setup(
         'commisery-verify-msg = commisery.checking:main',
       ],
       'hopic.plugins.yaml': [
-        'commisery = hopic.yaml.commisery:commisery',
+        'commisery = commisery.hopic_template:commisery',
       ],
     },
     zip_safe=True,
