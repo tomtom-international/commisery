@@ -6,6 +6,8 @@ version:
     strict: yes
     on-every-change: no
 
+project-name: PIPE
+
 phases:
   style:
     commit-messages:
