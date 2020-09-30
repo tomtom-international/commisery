@@ -178,6 +178,13 @@ def test_conventional_fixup_fix():
     assert not m.has_new_feature()
     assert m.has_fix()
 
+
+def test_multiple_fixups():
+    """Permit multiple stacked fixup! and squash! prefixes"""
+    m = CommitMessage('fixup! squash! fixup! something')
+    assert m.autosquashed_subject == 'something'
+
+
 def test_conventional_footers():
     m = ConventionalCommit('''\
 Merge #63: improvement(groovy): retrieve execution graph in a single 'getinfo' call

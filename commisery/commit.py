@@ -22,7 +22,7 @@ _Footer = namedtuple('Footer', ('token', 'value'))
 class CommitMessage(object):
     line_separator = '\n'
     paragraph_separator = '\n\n'
-    autosquash_re = re.compile(r'^(fixup|squash)!\s+')
+    autosquash_re = re.compile(r'^(?:(?:fixup|squash)!\s+)+')
     merge_re = re.compile(r'^Merge.*?:[ \t]*')
 
     def __init__(self, message, hexsha=None):
