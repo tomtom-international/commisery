@@ -185,6 +185,33 @@ def test_multiple_fixups():
     assert m.autosquashed_subject == 'something'
 
 
+def test_basic_footers():
+    m = CommitMessage('''\
+Merge #63: something
+
+Bla bla
+
+BREAKING CHANGE: something changed in an unpredicted way
+
+Addresses #42 by working on finding the question
+Implements: PIPE-123 through the obliviator
+Acked-by: Alice <alice@example.com>
+Merged-by: Hopic 1.21.2
+Acked-by: Bob <bob@example.com>
+''')
+    with pytest.raises(KeyError):
+        # git-trailer format for footers doesn't permit spaces in the token name
+        _ = m.footers['BREAKING CHANGE']
+
+    assert tuple(tuple(footer) for footer in m.footers) == (
+            ('Addresses' , '#42 by working on finding the question'),
+            ('Implements', 'PIPE-123 through the obliviator'),
+            ('Acked-by'  , 'Alice <alice@example.com>'),
+            ('Merged-by' , 'Hopic 1.21.2'),
+            ('Acked-by'  , 'Bob <bob@example.com>'),
+        )
+
+
 def test_conventional_footers():
     m = ConventionalCommit('''\
 Merge #63: improvement(groovy): retrieve execution graph in a single 'getinfo' call
