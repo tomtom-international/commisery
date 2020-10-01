@@ -158,7 +158,7 @@ class ConventionalCommit(CommitMessage):
 
     # 8.  ..., followed by either a `: ` or ` #` separator, followed by a string value (this is inspired by the git
     #     trailer convention).
-    (?::[ ]|[ ][#])
+    (?::[ ]|[ ](?=[#]))
     ''', re.VERBOSE)
 
     def __init__(self, message, hexsha=None):
