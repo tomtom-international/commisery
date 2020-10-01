@@ -185,6 +185,33 @@ def test_multiple_fixups():
     assert m.autosquashed_subject == 'something'
 
 
+def test_basic_footers():
+    m = CommitMessage('''\
+Merge #63: something
+
+Bla bla
+
+BREAKING CHANGE: something changed in an unpredicted way
+
+Addresses #42 by working on finding the question
+Implements: PIPE-123 through the obliviator
+Acked-by: Alice <alice@example.com>
+Merged-by: Hopic 1.21.2
+Acked-by: Bob <bob@example.com>
+''')
+    with pytest.raises(KeyError):
+        # git-trailer format for footers doesn't permit spaces in the token name
+        _ = m.footers['BREAKING CHANGE']
+
+    assert tuple(tuple(footer) for footer in m.footers) == (
+            ('Addresses' , '#42 by working on finding the question'),
+            ('Implements', 'PIPE-123 through the obliviator'),
+            ('Acked-by'  , 'Alice <alice@example.com>'),
+            ('Merged-by' , 'Hopic 1.21.2'),
+            ('Acked-by'  , 'Bob <bob@example.com>'),
+        )
+
+
 def test_conventional_footers():
     m = ConventionalCommit('''\
 Merge #63: improvement(groovy): retrieve execution graph in a single 'getinfo' call
@@ -193,7 +220,7 @@ This should reduce the amount of Jenkins master/slave interactions and
 their associated Groovy script engine "context switches" (state
 serialization and restoration). As a result performance should increase.
 
-Addresses #PIPE-279 by adding a test framework.
+Addresses #279 by adding a test framework.
 
 Acked-by: Anton Indrawan <Anton.Indrawan@tomtom.com>
 Acked-by: Joost Muller <Joost.Muller@tomtom.com>
@@ -205,7 +232,7 @@ Merged-by: Hopic 0.10.2.dev7+g840ca0c
     assert m.scope == 'groovy'
 
     assert tuple(tuple(footer) for footer in m.footers) == (
-            ('Addresses', 'PIPE-279 by adding a test framework.'),
+            ('Addresses', '#279 by adding a test framework.'),
 
             ('Acked-by' , 'Anton Indrawan <Anton.Indrawan@tomtom.com>'),
             ('Acked-by' , 'Joost Muller <Joost.Muller@tomtom.com>'),

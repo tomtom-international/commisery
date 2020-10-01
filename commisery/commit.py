@@ -14,6 +14,7 @@
 
 from collections import namedtuple
 import re
+import typing
 
 
 _Footer = namedtuple('Footer', ('token', 'value'))
@@ -24,6 +25,25 @@ class CommitMessage(object):
     paragraph_separator = '\n\n'
     autosquash_re = re.compile(r'^(?:(?:fixup|squash)!\s+)+')
     merge_re = re.compile(r'^Merge.*?:[ \t]*')
+
+    # Variation of conventional commits footer that more closely matches 'git trailers'.
+    # In particular it doesn't permit 'BREAKING CHANGE' (with a space, instead of '-') as a footer's token.
+    footer_re = re.compile(r'''
+    # 8.  One or more footers MAY be provided one blank line after the body. ...
+    \n
+
+    # 8.  ... Each footer MUST consist of a word token, ...
+    (?P<token>
+
+    # 9.  A footer's token MUST use `-` in place of whitespace characters, e.g. `Acked-by` (this helps differentiate
+    #     the footer section from a multi-paragraph body). ...
+        \w+(?:-\w+)*
+    )
+
+    # 8.  ..., followed by either a `: ` or ` #` separator, followed by a string value (this is inspired by the git
+    #     trailer convention).
+    (?::[ ]|[ ](?=[#]))
+    ''', re.VERBOSE)
 
     def __init__(self, message, hexsha=None):
         if isinstance(message, str):
@@ -59,6 +79,8 @@ class CommitMessage(object):
         # Strip last line terminator from the last paragraph.
         if self.message and self.message[-1] == self.line_separator:
             self._paragraph_index[-1] -= 1
+
+        self._footer_index = [(m.group('token'), m.start(), m.end()) for m in self.footer_re.finditer(self.message)]
 
     @property
     def lines(self):
@@ -100,6 +122,10 @@ class CommitMessage(object):
             idx += len(self._paragraph_index) - 1
         idx = self._paragraph_index[idx]
         return self.message[:idx].count(self.line_separator)
+
+    @property
+    def footers(self):
+        return _FooterList(self.message, self._footer_index)
 
     def has_breaking_change(self):
         return None
@@ -158,7 +184,7 @@ class ConventionalCommit(CommitMessage):
 
     # 8.  ..., followed by either a `: ` or ` #` separator, followed by a string value (this is inspired by the git
     #     trailer convention).
-    (?::[ ]|[ ][#])
+    (?::[ ]|[ ](?=[#]))
     ''', re.VERBOSE)
 
     def __init__(self, message, hexsha=None):
@@ -236,7 +262,7 @@ class _IndexedList(object):
         return self._message[self._index[idx] : self._index[idx+1] - len(self.separator)]
 
 
-class _ConventionalFooterList(object):
+class _FooterList(object):
     def __init__(self, message, index):
         self._message = message
         self._index = index
@@ -245,15 +271,8 @@ class _ConventionalFooterList(object):
         return len(self._index)
 
     def __getitem__(self, idx):
-        def casefold(string):
-            try:
-                return string.casefold()
-            except AttributeError:
-                # Python2-compatible fallback
-                return string.upper().lower()
-
         if isinstance(idx, str):
-            matches = [footer.value for footer in self if casefold(footer.token) == casefold(idx)]
+            matches = [footer.value for footer in self if footer.token.casefold() == idx.casefold()]
             if not matches:
                 raise KeyError(f"{idx} not found in footer list")
             return matches
@@ -270,6 +289,29 @@ class _ConventionalFooterList(object):
             token = 'BREAKING CHANGE'
 
         return _Footer(token=token, value=self._message[content_start:content_end])
+
+    def get(self, key : str, default=()) -> typing.Sequence:
+        if not isinstance(key, str):
+            raise TypeError(f"Only 'str' keys are supported, '{type(key).__name__}' passed instead")
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
+
+class _ConventionalFooterList(_FooterList):
+    def __getitem__(self, idx):
+        # 16. `BREAKING-CHANGE` MUST be synonymous with `BREAKING CHANGE`, when used as a token in a footer.
+        if isinstance(idx, str):
+            if idx.casefold() == 'BREAKING-CHANGE'.casefold():
+                idx = 'BREAKING CHANGE'
+            return super().__getitem__(idx)
+        else:
+            footer = super().__getitem__(idx)
+            if footer.token == 'BREAKING-CHANGE':
+                return _Footer('BREAKING CHANGE', footer.value)
+            else:
+                return footer
 
 
 def _strip_message(message):
