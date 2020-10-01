@@ -193,7 +193,7 @@ This should reduce the amount of Jenkins master/slave interactions and
 their associated Groovy script engine "context switches" (state
 serialization and restoration). As a result performance should increase.
 
-Addresses #PIPE-279 by adding a test framework.
+Addresses #279 by adding a test framework.
 
 Acked-by: Anton Indrawan <Anton.Indrawan@tomtom.com>
 Acked-by: Joost Muller <Joost.Muller@tomtom.com>
@@ -205,7 +205,7 @@ Merged-by: Hopic 0.10.2.dev7+g840ca0c
     assert m.scope == 'groovy'
 
     assert tuple(tuple(footer) for footer in m.footers) == (
-            ('Addresses', 'PIPE-279 by adding a test framework.'),
+            ('Addresses', '#279 by adding a test framework.'),
 
             ('Acked-by' , 'Anton Indrawan <Anton.Indrawan@tomtom.com>'),
             ('Acked-by' , 'Joost Muller <Joost.Muller@tomtom.com>'),
