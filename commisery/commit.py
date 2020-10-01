@@ -245,15 +245,8 @@ class _ConventionalFooterList(object):
         return len(self._index)
 
     def __getitem__(self, idx):
-        def casefold(string):
-            try:
-                return string.casefold()
-            except AttributeError:
-                # Python2-compatible fallback
-                return string.upper().lower()
-
         if isinstance(idx, str):
-            matches = [footer.value for footer in self if casefold(footer.token) == casefold(idx)]
+            matches = [footer.value for footer in self if footer.token.casefold() == idx.casefold()]
             if not matches:
                 raise KeyError(f"{idx} not found in footer list")
             return matches
