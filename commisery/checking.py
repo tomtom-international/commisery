@@ -70,6 +70,9 @@ def main(argv=None):
     if len(argv) >= 2:
         commit = argv[1]
 
+    return check_commit(commit)
+
+def check_commit(commit):
     try:
         if re.match(r'^[0-9a-fA-F]{40}$', str(commit)):
             raise IOError('a full commit hash should never be treated as a file')
