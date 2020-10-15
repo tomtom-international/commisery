@@ -49,13 +49,29 @@ $ commisery-verify-msg .git/COMMIT_EDITMSG
 $ commisery-verify-msg my-own-message.txt
 ```
 
-The exit code of that tool will be zero if and only if it found errors in the given commit message.
+The exit code of that tool will be non-zero if and only if it found errors in the given commit message.
 
 After that you can use it as a hook in Git to check messages you wrote by creating a `.git/hooks/commit-msg` file with these contents:
 ```sh
 #!/bin/sh
 exec commisery-verify-msg "$@"
 ```
+
+## GitHub support
+
+You can use Commisery based on a GitHub PullRequest by installing the package with the extra `github`:
+
+```sh
+pip3 install --user --upgrade commisery[github]
+```
+
+You can verify the Pull Request title and commit messages with the included CLI tool:
+
+```sh
+$ commisery-verify-github-pullrequest --token GITHUB_TOKEN --repository owner/repo --pullrequest-id 1
+```
+
+The exit code of that tool will be non-zero if and only if it found errors in the given Pull Request.
 
 ## Hopic
 

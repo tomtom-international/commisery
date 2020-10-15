@@ -47,10 +47,17 @@ setup(
     tests_require=(
       'pytest',
     ),
+    extras_require={
+      'github': [
+        'PyGithub>=1.53,<2',
+        'Click>=7.1.2,<8'
+      ],
+    },
     use_scm_version={"relative_to": __file__},
     entry_points={
       'console_scripts': [
         'commisery-verify-msg = commisery.checking:main',
+        'commisery-verify-github-pullrequest = commisery.github:main [github]',
       ],
       'hopic.plugins.yaml': [
         'commisery = commisery.hopic_template:commisery',
