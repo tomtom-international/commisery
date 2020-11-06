@@ -54,7 +54,7 @@ def type_check(f):
 
 
 MatchGroup = namedtuple('MatchGroup', ('text', 'name', 'start', 'end'))
-DEFAULT_ACCEPTED_TAGS = (
+DEFAULT_ACCEPTED_TAGS = frozenset((
     'build',
     'chore',
     'ci',
@@ -65,7 +65,7 @@ DEFAULT_ACCEPTED_TAGS = (
     'style',
     'test',
     'improvement',
-)
+))
 
 
 def check_commit(commit, custom_accepted_tags=None, require_ticket=False):
@@ -80,13 +80,37 @@ def check_commit(commit, custom_accepted_tags=None, require_ticket=False):
         message = subprocess.check_output(('git', 'show', '-q', '--format=%B', commit, '--'))[:-1].decode('UTF-8')
 
     have_error = False
-    for error in check_commit_message(commit, message):
+    for error in check_commit_message(commit, message, custom_accepted_tags):
         have_error = True
         print(error, file=sys.stderr)
-    return (1 if have_error else 0)
+
+    if require_ticket and count_ticket_refs(message) == 0:
+        have_error = True
+        print(f"\x1B[1m{commit}: \x1B[31merror\x1B[39m: no ticket was referenced in the provided commit\x1B[m",
+              file=sys.stderr)
+
+    return 1 if have_error else 0
 
 
-def check_commit_message(commit, message):
+JIRA_RE = re.compile(r'\b(?!' +
+                     '|'.join(re.escape(i + '-') for i in (
+                         'AES',  # AES-128
+                         'PEP',  # PEP-440
+                         'SHA',  # SHA-256
+                         'UTF',  # UTF-8
+                         'VT',  # VT-220
+                     )) +
+                     r')[A-Z]+-[0-9]+\b')
+
+
+def count_ticket_refs(message):
+    """
+    Returns the number of Jira tickets referenced anywhere in the commit message.
+    """
+    return len(JIRA_RE.findall(message))
+
+
+def check_commit_message(commit, message, custom_accepted_tags=None):
     if isinstance(message, str):
         message = CommitMessage(message)
 
@@ -96,6 +120,8 @@ def check_commit_message(commit, message):
     if re.match(r"^Merge (?:branch|tag) '.*?'(?:into '.*')?$", message.subject):
         # Ignore branch/tag merges
         return
+
+    accepted_tags = frozenset(custom_accepted_tags) if custom_accepted_tags is not None else DEFAULT_ACCEPTED_TAGS
 
     subject_re = re.compile(r'''
         ^
@@ -152,19 +178,6 @@ def check_commit_message(commit, message):
             error += '\x1B[39m'
             yield error
 
-    accepted_tags = (
-            'build',
-            'chore',
-            'ci',
-            'docs',
-            'perf',
-            'refactor',
-            'revert',
-            'style',
-            'test',
-            'improvement',
-        )
-
     # 1. Commits MUST be prefixed with a type, which consists of a noun, feat, fix, etc., followed by a colon and a space.
     # 2. The type feat MUST be used when a commit adds a new feature to your application or library.
     # 3. The type fix MUST be used when a commit represents a bug fix for your application.
@@ -172,7 +185,7 @@ def check_commit_message(commit, message):
         error = f"\x1B[1m{commit}:1:1: \x1B[31merror\x1B[39m: use of type tag that's neither 'feat', 'fix' nor whitelisted ({', '.join(accepted_tags)})\x1B[m\n"
         error += message.full_subject + '\n'
         error += ' ' * type_tag.start + '\x1B[31m' + '~' * (type_tag.end - type_tag.start) + '\x1B[39m'
-        possibilities = difflib.get_close_matches(type_tag.text, ('feat', 'fix') + accepted_tags, n=1)
+        possibilities = difflib.get_close_matches(type_tag.text, {'feat', 'fix'} | accepted_tags, n=1)
         if possibilities:
             error += '\n' + possibilities[0]
         yield error
@@ -329,16 +342,8 @@ def check_commit_message(commit, message):
 
         # Our own requirements on the description
         # No JIRA tickets in the subject line, because it wastes precious screen estate (80 chars)
-        non_jira_projects = (
-                'AES', # AES-128
-                'PEP', # PEP-440
-                'SHA', # SHA-256
-                'UTF', # UTF-8
-                'VT',  # VT-220
-            )
-        jira_re = re.compile(r'\b(?!' + '|'.join(re.escape(i + '-') for i in non_jira_projects) + r')[A-Z]+-[0-9]+\b')
         jira_tickets = []
-        for m in jira_re.finditer(description.text):
+        for m in JIRA_RE.finditer(description.text):
             jira_tickets.extend(range(*m.span()))
         if jira_tickets:
             error = "\x1B[1m{commit}:{line}:{col}: \x1B[31merror\x1B[39m: commit message's subject contains Jira tickets\x1B[m\n".format(line=1, col=description.start + 1 + jira_tickets[0], commit=commit)
