@@ -25,7 +25,6 @@ from inspect import getfullargspec
 from stemming.porter2 import stem
 import difflib
 import itertools
-import os
 import re
 import regex
 import sys
@@ -35,6 +34,7 @@ from typing import (
         Iterable,
         Sequence,
     )
+
 
 def type_check(f):
     @wraps(f)
@@ -54,19 +54,21 @@ def type_check(f):
 
 
 MatchGroup = namedtuple('MatchGroup', ('text', 'name', 'start', 'end'))
+DEFAULT_ACCEPTED_TAGS = (
+    'build',
+    'chore',
+    'ci',
+    'docs',
+    'perf',
+    'refactor',
+    'revert',
+    'style',
+    'test',
+    'improvement',
+)
 
 
-def main(argv=None):
-    if argv is None:
-        argv = sys.argv[:]
-
-    commit = 'HEAD'
-    if len(argv) >= 2:
-        commit = argv[1]
-
-    return check_commit(commit)
-
-def check_commit(commit):
+def check_commit(commit, custom_accepted_tags=None, require_ticket=False):
     try:
         if re.match(r'^[0-9a-fA-F]{40}$', str(commit)):
             raise IOError('a full commit hash should never be treated as a file')
@@ -299,7 +301,7 @@ def check_commit_message(commit, message):
                 else:
                     error += review_comment_ref.text[last:linem.start()] + '\n'
                 error += '\x1B[32m' + '^' * (linem.start() - last) + '\x1B[39m\n'
-                
+
                 last = linem.end()
             error += f"\x1B[1m{commit}:{line + 1}:{start + 1}: \x1B[30mnote\x1B[39m: prefer using --fixup when fixing previous commits in the same pull request\x1B[m"
             yield error
@@ -456,6 +458,3 @@ def check_commit_message(commit, message):
 
         yield from complain_about_review_refs(paragraph, lineno=lineno)
 
-
-if __name__ == "__main__":
-    sys.exit(main())
