@@ -1,9 +1,9 @@
 # Commisery
 
 Commisery is a package to help check whether given commit messages adhere to [Conventional Commits].
-Specifically it checks the syntax and some small aspects of the semantics.
+Specifically, it checks the syntax and some small aspects of the semantics.
 
-The purpose of this is several fold:
+The purpose of this is severalfold:
 
 1. Achieving a common layout for commit messages in order to help humans more quickly extract useful information from them.
 2. Making these messages partially machine processable in order to classify changes for proper version management.
@@ -40,11 +40,14 @@ You can install this package with pip as follows:
 pip3 install --user --upgrade commisery
 ```
 
+## Usage
+
 You can verify commit messages with the included CLI tool:
 
 ```sh
 $ commisery-verify-msg 8c3349528888a62382afd056eea058843dfb7690
 $ commisery-verify-msg master
+$ commisery-verify-msg :/'refactor'
 $ commisery-verify-msg .git/COMMIT_EDITMSG
 $ commisery-verify-msg my-own-message.txt
 ```
@@ -55,6 +58,28 @@ After that you can use it as a hook in Git to check messages you wrote by creati
 ```sh
 #!/bin/sh
 exec commisery-verify-msg "$@"
+```
+
+The CLI tool also handles commit-ish revision ranges adhering to the `git rev-list` format:
+
+```sh
+$ commisery-verify-msg HEAD~..HEAD
+$ commisery-verify-msg HEAD^2~4 ^HEAD^2~6 ^HEAD^3~2
+$ commisery-verify-msg master..feat/my-feature
+$ commisery-verify-msg HEAD@{yesterday}..HEAD
+$ commisery-verify-msg HEAD@{upstream}..HEAD
+$ commisery-verify-msg :/'refactor'..HEAD
+$ commisery-verify-msg 2fff3d8..8c33495
+```
+
+Commisery allows for custom behavior as well:
+ - a custom list of accepted Conventional Commit tags can be provided
+ - the presence of a Jira-style ticket reference within the specified commit message (or range) can be enforced
+
+Refer to the built-in help for information on these optional parameters.
+
+```sh
+$ commisery-verify-msg --help
 ```
 
 ## GitHub support
