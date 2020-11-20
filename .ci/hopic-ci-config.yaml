@@ -23,7 +23,7 @@ phases:
       - python3 -m venv --clear venv3
       - venv3/bin/python -m pip install tox
       - junit: junit-test.xml
-        sh: venv3/bin/python -m tox -e py3
+        sh: venv3/bin/python -m tox -r -e py3
 
   publish:
     python:
