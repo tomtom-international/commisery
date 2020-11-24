@@ -32,10 +32,13 @@ setup(
     description=description,
     long_description=long_description,
     long_description_content_type='text/markdown',
-    packages=('commisery',),
+    packages=('commisery','commisery.cli'),
     py_modules=('commisery',),
     python_requires='>=3.6.5',
     install_requires=(
+      'Click>=7.1.2,<8',
+      'click-log',
+      'GitPython>=3,<4',
       'regex',
       'stemming>=1,<2',
     ),
@@ -50,13 +53,12 @@ setup(
     extras_require={
       'github': [
         'PyGithub>=1.53,<2',
-        'Click>=7.1.2,<8'
       ],
     },
     use_scm_version={"relative_to": __file__},
     entry_points={
       'console_scripts': [
-        'commisery-verify-msg = commisery.checking:main',
+        'commisery-verify-msg = commisery.cli:main',
         'commisery-verify-github-pullrequest = commisery.github:main [github]',
       ],
       'hopic.plugins.yaml': [
