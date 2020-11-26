@@ -80,8 +80,10 @@ def main(target, tags, ticket):
            not os.path.exists(target_str) and \
            len(subprocess.check_output(('git', 'rev-parse') + target,
                                        stderr=subprocess.DEVNULL).decode(encoding='UTF-8').splitlines()) > 1:
+            log.debug(f'Handling as range: {target_str}')
             result = check_commit_rev_range(target, custom_accepted_tags=custom_accepted_tags, require_ticket=ticket)
         else:
+            log.debug(f'Handling as commitish: {target_str}')
             result = check_commit(target_str, custom_accepted_tags=custom_accepted_tags, require_ticket=ticket)
     except subprocess.CalledProcessError:
         result = 1
