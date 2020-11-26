@@ -25,3 +25,13 @@ Commisery will be executed on each commit in your pull requests by this snippet:
   phases:
     style:
       commit-messages: !template "commisery"
+
+In case you'd like to enforce a Jira-style ticket to be present in the commits comprising a pull request, provide the `require-ticket` parameter to the template:
+
+.. code-block:: yaml
+
+  phases:
+    style:
+      commit-messages: !template
+        name: commisery
+        require-ticket: true
