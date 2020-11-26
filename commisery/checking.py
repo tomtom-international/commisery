@@ -463,3 +463,7 @@ def check_commit_message(commit, message, custom_accepted_tags=None):
 
         yield from complain_about_review_refs(paragraph, lineno=lineno)
 
+
+if __name__ == "__main__":
+    from .cli import main
+    sys.exit(main())
