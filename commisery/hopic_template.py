@@ -12,20 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from collections.abc import Mapping
 import logging
 import sys
+
 import hopic.build
 
 log = logging.getLogger(__name__)
 
-def commisery(volume_vars, **props):
+
+def commisery(volume_vars: Mapping, *, require_ticket: bool = False):
     check_template = {
         'image': None,
         'foreach': 'AUTOSQUASHED_COMMIT',
         'sh': (sys.executable, '-m', 'commisery.checking', '${AUTOSQUASHED_COMMIT}'),
     }
 
-    if props.get('require-ticket', False):
+    if require_ticket:
         hopic_git_info = hopic.build.HopicGitInfo.from_repo(volume_vars['WORKSPACE'])
 
         if hopic_git_info.target_commit:
