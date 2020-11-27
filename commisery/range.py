@@ -41,7 +41,8 @@ def check_commit_rev_range(revision_range, custom_accepted_tags=None, require_ti
         1 on failure, 0 on success.
     """
     log.debug('Revision range: %s', ' '.join(revision_range))
-    log.debug('Custom accepted tags: %s', ' '.join(custom_accepted_tags or []))
+    if custom_accepted_tags:
+        log.debug('Custom accepted tags: %s', ' '.join(custom_accepted_tags))
 
     try:
         with git.Repo(search_parent_directories=True) as repo:
