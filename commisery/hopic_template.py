@@ -19,7 +19,11 @@ import hopic.build
 log = logging.getLogger(__name__)
 
 def commisery(volume_vars, **props):
-    check_template = None
+    check_template = {
+        'image': None,
+        'foreach': 'AUTOSQUASHED_COMMIT',
+        'sh': (sys.executable, '-m', 'commisery.checking', '${AUTOSQUASHED_COMMIT}'),
+    }
 
     if props.get('require-ticket', False):
         hopic_git_info = hopic.build.HopicGitInfo.from_repo(volume_vars['WORKSPACE'])
@@ -32,15 +36,9 @@ def commisery(volume_vars, **props):
         else:
             log.info('Not checking ticket presence in commit messages, since no target was prepared.')
 
-    if check_template is None:
-            check_template = {
-                    'image': None,
-                    'foreach': 'AUTOSQUASHED_COMMIT',
-                    'sh': (sys.executable, '-m', 'commisery.checking', '${AUTOSQUASHED_COMMIT}'),
-                }
-
-    return [ check_template,
-            {
-                'sh': (sys.executable, '-m', 'commisery.checking', 'HEAD'),
-            },
-        ]
+    return [
+        check_template,
+        {
+            'sh': (sys.executable, '-m', 'commisery.checking', 'HEAD'),
+        },
+    ]
