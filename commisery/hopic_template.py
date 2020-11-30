@@ -12,35 +12,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from collections.abc import Mapping
 import logging
 import sys
+
 import hopic.build
 
 log = logging.getLogger(__name__)
 
-def commisery(volume_vars, **props):
-    check_template = None
 
-    if props.get('require-ticket', False):
+def commisery(volume_vars: Mapping, *, require_ticket: bool = False):
+    check_template = {
+        'image': None,
+        'foreach': 'AUTOSQUASHED_COMMIT',
+        'sh': (sys.executable, '-m', 'commisery.checking', '${AUTOSQUASHED_COMMIT}'),
+    }
+
+    if require_ticket:
         hopic_git_info = hopic.build.HopicGitInfo.from_repo(volume_vars['WORKSPACE'])
 
         if hopic_git_info.target_commit:
             check_template = {
-                        'image': None,
-                        'sh': (sys.executable, '-m', 'commisery.checking', '-j', f'{hopic_git_info.target_commit}..HEAD'),
-                    }
+                'image': None,
+                'sh': (sys.executable, '-m', 'commisery.checking', '-j', f'{hopic_git_info.target_commit}..HEAD'),
+            }
         else:
             log.info('Not checking ticket presence in commit messages, since no target was prepared.')
 
-    if check_template is None:
-            check_template = {
-                    'image': None,
-                    'foreach': 'AUTOSQUASHED_COMMIT',
-                    'sh': (sys.executable, '-m', 'commisery.checking', '${AUTOSQUASHED_COMMIT}'),
-                }
-
-    return [ check_template,
-            {
-                'sh': (sys.executable, '-m', 'commisery.checking', 'HEAD'),
-            },
-        ]
+    return [
+        check_template,
+        {
+            'sh': (sys.executable, '-m', 'commisery.checking', 'HEAD'),
+        },
+    ]
