@@ -33,9 +33,9 @@ def commisery(volume_vars: Mapping, *, require_ticket: bool = False):
 
         if hopic_git_info.target_commit:
             check_template = {
-                        'image': None,
-                        'sh': (sys.executable, '-m', 'commisery.checking', '-j', f'{hopic_git_info.target_commit}..HEAD'),
-                    }
+                'image': None,
+                'sh': (sys.executable, '-m', 'commisery.checking', '-j', f'{hopic_git_info.target_commit}..HEAD'),
+            }
         else:
             log.info('Not checking ticket presence in commit messages, since no target was prepared.')
 
