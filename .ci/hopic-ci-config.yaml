@@ -31,7 +31,6 @@ post-submit:
       with-credentials:
         id: commisery-pypi
         type: username-password
-    - python3 -m venv venv3
-    - venv3/bin/python -m pip install --upgrade twine wheel
-    - venv3/bin/python setup.py sdist bdist_wheel
-    - venv3/bin/python venv3/bin/twine upload -u ${USERNAME} -p ${PASSWORD} --repository pypi dist/*
+    - python3 -m venv --clear venv3
+    - venv3/bin/python -m pip install --upgrade tox
+    - venv3/bin/python -m tox -e publish
