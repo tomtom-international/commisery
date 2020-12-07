@@ -193,6 +193,11 @@ def check_commit_message(commit, message, custom_accepted_tags=None):
     # 4. An optional scope MAY be provided after a type. A scope is a phrase describing a section of the codebase enclosed
     #    in parenthesis, e.g., fix(parser):
     if scope is not None:
+        if not scope.text:
+            error = f"\x1B[1m{commit}:1:{scope.start + 1}: \x1B[31merror\x1B[39m: scope is empty\x1B[m\n"
+            error += message.full_subject + '\n'
+            error += scope.start * ' ' + '\x1B[32m^\x1B[39m'
+            yield error
         yield from complain_about_excess_space(scope)
 
     # 13. If included in the type/scope prefix, breaking changes MUST be indicated by a `!` immediately before the `:`.
