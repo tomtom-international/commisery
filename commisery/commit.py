@@ -200,8 +200,8 @@ class ConventionalCommit(CommitMessage):
         if re.search(r'[A-Z]', self.type_tag):
             raise RuntimeError("commit message's type tag ({self.type_tag!r}) contains upper case letters but isn't allowed to".format(self=self))
 
-        if self.scope is not None and not re.match(r'^\S+$', self.scope):
-            raise RuntimeError("commit message's scope ({self.scope!r}) is empty or contains whitespace but shouldn't".format(self=self))
+        if self.scope is not None and not re.match(r'^\S+(?:.*\S+)?$', self.scope):
+            raise RuntimeError("commit message's scope ({self.scope!r}) is empty or contains excess whitespace but shouldn't".format(self=self))
 
         if self._is_breaking is not None and self._is_breaking != '!':
             raise RuntimeError("breaking change indicator in commit message's subject should be exactly '!' (have: {self._is_breaking!r})".format(self=self))
