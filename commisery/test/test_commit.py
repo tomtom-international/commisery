@@ -91,15 +91,15 @@ def test_conventional_scoped_improvement():
     assert not m.has_new_feature()
     assert not m.has_fix()
 
+def test_conventional_scope_with_space():
+    ConventionalCommit('docs(git tips): improve documentation on amending')
+
 def test_conventional_badly_scoped():
     with pytest.raises(RuntimeError, match=r'scope.*empty'):
         ConventionalCommit('fix(): display config error messages without backtrace')
 
     with pytest.raises(RuntimeError, match=r'scope.*whitespace'):
         ConventionalCommit('fix( config ): display config error messages without backtrace')
-
-    with pytest.raises(RuntimeError, match=r'scope.*whitespace'):
-        x = ConventionalCommit('fix(config error): display config error messages without backtrace')
 
 def test_conventional_fix():
     m = ConventionalCommit('fix: use the common ancestor of the source and target commit for autosquash')

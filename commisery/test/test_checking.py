@@ -97,6 +97,7 @@ def test_type_tag_typo():
 def test_scope_whitespace():
     error, = get_verification_failures('improvement( verifier ): verify the thingamajig')
     assert re.search(r'\bwhite.*space\b.*\bscope\b', error)
+    assert not get_verification_failures('improvement(thingamajig verifier): verify the thingamajig')
 
 
 def test_missing_separator():
