@@ -100,6 +100,11 @@ def test_scope_whitespace():
     assert not get_verification_failures('improvement(thingamajig verifier): verify the thingamajig')
 
 
+def test_empty_scope():
+    error, = get_verification_failures('improvement(): verify the thingamajig')
+    assert re.search(r'\bscope\b.*\bempty\b', error)
+
+
 def test_missing_separator():
     error, = get_verification_failures('improvement verify the thingamajig')
     assert re.search(r'\bseparator\b.*\btype\b.*\btag\b', error)
