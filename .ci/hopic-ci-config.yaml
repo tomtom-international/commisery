@@ -8,15 +8,13 @@ version:
 
 project-name: PIPE
 
+pip:
+  - packages:
+      - . # installing local version of Commisery
+
 phases:
   style:
-    commit-messages:
-      - python3 -m venv --clear venv3
-      - venv3/bin/python -m pip install --upgrade .
-      # Require each commit message to adhere to our requirements
-      - foreach: AUTOSQUASHED_COMMIT
-        sh: venv3/bin/python venv3/bin/commisery-verify-msg ${AUTOSQUASHED_COMMIT}
-      - venv3/bin/python venv3/bin/commisery-verify-msg HEAD
+    commit-messages: !template commisery
 
   test:
     python3:
