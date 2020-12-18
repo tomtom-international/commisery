@@ -86,15 +86,17 @@ def test_commisery_template(capfd):
     assert expanded[0]['image'] is None
     commits, head = [e['sh'] for e in expanded]
     assert 'commisery.checking' in commits
-    assert head[-2:] == ['commisery.checking', 'HEAD']
+    assert head[-3:] == ['commisery.checking', '--', 'HEAD']
 
 
+@pytest.mark.parametrize('ticket', [True, False])
 @pytest.mark.skipif(_hopic_version < (1,15), reason="Hopic >= 1.15.0 not available")
-def test_commisery_template_ticket(capfd, monkeypatch):
+def test_commisery_template_range(capfd, monkeypatch, ticket):
     import hopic.build
 
     class MockGitInfo():
         target_commit = 'OUR_TARGET_COMMIT'
+        autosquashed_commits = ['OUR_AUTOSQUASHED_COMMIT_1', 'OUR_AUTOSQUASHED_COMMIT_2']
 
         @classmethod
         def from_repo(cls, *args):
@@ -102,12 +104,12 @@ def test_commisery_template_ticket(capfd, monkeypatch):
 
     monkeypatch.setattr(hopic.build, 'HopicGitInfo', MockGitInfo)
 
-    result = run_with_config(dedent('''\
+    result = run_with_config(dedent(f'''\
                 phases:
                   style:
                     commit-messages: !template
                       name: commisery
-                      require-ticket: yes
+                      require-ticket: {ticket}
                 '''), ('show-config',))
 
     assert result.exit_code == 0
@@ -115,6 +117,7 @@ def test_commisery_template_ticket(capfd, monkeypatch):
     expanded = output['phases']['style']['commit-messages']
     assert expanded[0]['image'] is None
     commit_range, head = [e['sh'] for e in expanded]
-    assert commit_range[-2:] == ['-j', 'OUR_TARGET_COMMIT..HEAD']
+    assert ('--ticket' in commit_range) == ticket
+    assert commit_range[-2:] == ['--', 'OUR_TARGET_COMMIT..OUR_AUTOSQUASHED_COMMIT_1']
     assert 'commisery.checking' in commit_range
-    assert head[-2:] == ['commisery.checking', 'HEAD']
+    assert head[-3:] == ['commisery.checking', '--', 'HEAD']

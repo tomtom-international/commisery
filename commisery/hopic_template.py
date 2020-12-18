@@ -12,36 +12,60 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from collections.abc import Mapping
 import logging
 import sys
+from typing import Any, List, Mapping
 
 import hopic.build
 
 log = logging.getLogger(__name__)
 
 
-def commisery(volume_vars: Mapping, *, require_ticket: bool = False):
-    check_template = {
-        'image': None,
-        'foreach': 'AUTOSQUASHED_COMMIT',
-        'sh': (sys.executable, '-m', 'commisery.checking', '${AUTOSQUASHED_COMMIT}'),
-    }
+def _kebabify(name: str):
+    return name.replace('_', '-')
 
-    if require_ticket:
-        hopic_git_info = hopic.build.HopicGitInfo.from_repo(volume_vars['WORKSPACE'])
 
-        if hopic_git_info.target_commit:
-            check_template = {
-                'image': None,
-                'sh': (sys.executable, '-m', 'commisery.checking', '-j', f'{hopic_git_info.target_commit}..HEAD'),
-            }
-        else:
-            log.info('Not checking ticket presence in commit messages, since no target was prepared.')
+def _kwarg_to_arg(name, value):
+    if value is True:
+        return [f"--{_kebabify(name)}"]
+    elif value is not False and value is not None:
+        return [f"--{_kebabify(name)}", str(value)]
+    else:
+        return []
+
+
+def _kwargs_to_args(**kwargs: Mapping[str, Any]):
+    for key, val in kwargs.items():
+        yield from _kwarg_to_arg(key, val)
+
+
+def _commisery_command(*ranges: List[str], **kwargs):
+    return (sys.executable, '-m', 'commisery.checking', *_kwargs_to_args(**kwargs), '--', *ranges)
+
+
+def commisery(volume_vars: Mapping[str, str], *, require_ticket: bool = False):
+    hopic_git_info = hopic.build.HopicGitInfo.from_repo(volume_vars['WORKSPACE'])
+
+    if hopic_git_info.target_commit and hopic_git_info.autosquashed_commits:
+        check_command = {
+            'image': None,
+            'description': "Checking all commits provided in the Pull Request",
+            'sh': _commisery_command(
+                f'{hopic_git_info.target_commit}..{hopic_git_info.autosquashed_commits[0]}',
+                ticket=require_ticket,
+            ),
+        }
+    else:
+        check_command = {
+            'image': None,
+            'foreach': 'AUTOSQUASHED_COMMIT',
+            'sh': (sys.executable, '-m', 'commisery.checking', '${AUTOSQUASHED_COMMIT}'),
+        }
 
     return [
-        check_template,
+        check_command,
         {
-            'sh': (sys.executable, '-m', 'commisery.checking', 'HEAD'),
-        },
+            'description': "Checking merge commit. The subject and content of which may originate from your Pull Request's title and description",
+            'sh': _commisery_command('HEAD', ticket=False),
+        }
     ]
