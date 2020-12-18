@@ -149,7 +149,8 @@ def check_commit_message(commit, message, custom_accepted_tags=None):
     if not subject:
         error = f"\x1B[1m{commit}:1:1: \x1B[31merror\x1B[39m: commit message's subject not formatted according to Conventional Commits\x1B[m\n{subject_re.pattern}\n"
         error += message.full_subject + '\n'
-        error += ' ' * message.subject_start + '\x1B[32m' + '^' * max(len(message.full_subject) - message.subject_start, 1) + '\x1B[39m'
+        error += ' ' * message.subject_start + '\x1B[32m' + '^' * max(len(message.full_subject) - message.subject_start, 1) + '\x1B[39m\n'
+        error += "\x1B[36mnote\x1B[39m: refer to the Conventional Commits specification: https://www.conventionalcommits.org/en/v1.0.0/\x1B[m"
         yield error
 
     def extract_match_group(match, group, start=0):
@@ -321,7 +322,7 @@ def check_commit_message(commit, message, custom_accepted_tags=None):
                 error += '\x1B[32m' + '^' * (linem.start() - last) + '\x1B[39m\n'
 
                 last = linem.end()
-            error += f"\x1B[1m{commit}:{line + 1}:{start + 1}: \x1B[30mnote\x1B[39m: prefer using --fixup when fixing previous commits in the same pull request\x1B[m"
+            error += f"\x1B[1m{commit}:{line + 1}:{start + 1}: \x1B[36mnote\x1B[39m: prefer using --fixup when fixing previous commits in the same pull request\x1B[m"
             yield error
 
 
@@ -340,7 +341,7 @@ def check_commit_message(commit, message, custom_accepted_tags=None):
             error += ' ' * title_case_word.start + '\x1B[32m' + '^' + '~' * (title_case_word.end - title_case_word.start - 1) + '\x1B[39m'
             possibilities = difflib.get_close_matches(title_case_word.text, safe_words, n=1)
             if possibilities:
-                error += f"\n\x1B[1m{commit}:1:{title_case_word.start + 1}: \x1B[30mnote\x1B[39m: did you mean {possibilities[0]!r}?\x1B[m"
+                error += f"\n\x1B[1m{commit}:1:{title_case_word.start + 1}: \x1B[36mnote\x1B[39m: did you mean {possibilities[0]!r}?\x1B[m"
             yield error
 
         yield from complain_about_review_refs(description.text, description.start, quote_text=message.full_subject)
@@ -414,7 +415,7 @@ def check_commit_message(commit, message, custom_accepted_tags=None):
             error = f"\x1B[1m{commit}:1:{blacklisted.start + 1}: \x1B[31merror\x1B[39m: commit message's description contains blacklisted word or repeats type tag\x1B[m\n"
             error += message.full_subject + '\n'
             error += blacklisted.start * ' ' + '\x1B[32m^' * (blacklisted.end - blacklisted.start) + '\x1B[39m\n'
-            error += f"\x1B[1m{commit}:1:{blacklisted.start + 1}: \x1B[30mnote\x1B[39m: prefer using the imperative for verbs\x1B[m"
+            error += f"\x1B[1m{commit}:1:{blacklisted.start + 1}: \x1B[36mnote\x1B[39m: prefer using the imperative for verbs\x1B[m"
             yield error
 
     if len(message.subject) > 80:
