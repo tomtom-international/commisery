@@ -135,9 +135,19 @@ Bla bla...
 
 
 def test_non_imperative():
-    error, note = get_verification_failures('fix: added missing files')
-    assert re.search(r'\bdescription\b.*\b(?:blacklisted|imperative)\b', error)
-    assert 'imperative' in note
+    error, *notes = get_verification_failures('fix: added missing files')
+    assert re.search(r'\bdescription\b.*\bimperative\b', error)
+    assert 'imperative' in notes[0]
+
+
+@pytest.mark.parametrize('msg, expected_note', (
+    ('refactor: refactor stuff', '`refactor` commit contains'),
+    ('fix: fix issue', 'fix in more detail'),
+))
+def test_repeat_tag(msg, expected_note):
+    error, *notes = get_verification_failures(msg)
+    assert re.search(r'\bdescription\b.*\brepeats\b', error)
+    assert expected_note in notes[0]
 
 
 def test_whitespace_breaking():
