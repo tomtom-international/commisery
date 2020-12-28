@@ -369,7 +369,7 @@ def check_commit_message(commit, message, custom_accepted_tags=None):
             error += ' ' * (len(message.full_subject) - 1) + '\x1B[32m^\x1B[39m'
             yield error
 
-        blacklist_start_words = (
+        common_non_imperative_verbs = (
                 'added',
                 'adds',
                 'adding'
@@ -406,16 +406,31 @@ def check_commit_message(commit, message, custom_accepted_tags=None):
                 'verified',
                 'verifies',
                 'verifying',
-
-                # repeating the tag is frowned upon as well
-                type_tag.text,
             )
-        blacklisted = extract_match_group(re.match(r'^(?:' + '|'.join(re.escape(w) for w in blacklist_start_words) + r')\b', description.text, flags=re.IGNORECASE), 0, description.start)
-        if blacklisted:
-            error = f"\x1B[1m{commit}:1:{blacklisted.start + 1}: \x1B[31merror\x1B[39m: commit message's description contains blacklisted word or repeats type tag\x1B[m\n"
+        blacklisted_verb = extract_match_group(re.match(r'^(?:' + '|'.join(re.escape(w) for w in common_non_imperative_verbs) + r')\b', description.text, flags=re.IGNORECASE), 0, description.start)
+        if blacklisted_verb:
+            error = f"\x1B[1m{commit}:1:{blacklisted_verb.start + 1}: \x1B[31merror\x1B[39m: commit message's description starts with a non-imperative verb\x1B[m\n"
             error += message.full_subject + '\n'
-            error += blacklisted.start * ' ' + '\x1B[32m^' * (blacklisted.end - blacklisted.start) + '\x1B[39m\n'
-            error += f"\x1B[1m{commit}:1:{blacklisted.start + 1}: \x1B[36mnote\x1B[39m: prefer using the imperative for verbs\x1B[m"
+            error += blacklisted_verb.start * ' ' + '\x1B[32m^' * (blacklisted_verb.end - blacklisted_verb.start) + '\x1B[39m\n'
+            error += (f"\x1B[1m{commit}:1:{blacklisted_verb.start + 1}: \x1B[36mnote\x1B[39m: prefer using the imperative form for verbs; your description should fit in the sentence:\x1B[m\n")
+            error += f"\x1B[1m{commit}:1:{blacklisted_verb.start + 1}: \x1B[36mnote\x1B[39m:     When applied, this commit will <description>.\x1B[m"
+            yield error
+
+        # Repeating the tag is frowned upon
+        tag_repetition = extract_match_group(re.match(rf'^{type_tag.text}\b', description.text, flags=re.IGNORECASE), 0, description.start)
+        if tag_repetition:
+            error = f"\x1B[1m{commit}:1:{tag_repetition.start + 1}: \x1B[31merror\x1B[39m: commit message description's starting word repeats the tag\x1B[m\n"
+            error += message.full_subject + '\n'
+            error += tag_repetition.start * ' ' + '\x1B[32m^' * (tag_repetition.end - tag_repetition.start) + '\x1B[39m\n'
+            # Repeating 'fix' is often seen and deserves a specialized message
+            if type_tag.text == 'fix':
+                error += (f"\x1B[1m{commit}:1:{tag_repetition.start + 1}: \x1B[36mnote\x1B[39m: try describing your fix in more detail; for example:\x1B[m\n")
+                error += (f"\x1B[1m{commit}:1:{tag_repetition.start + 1}: \x1B[36mnote\x1B[39m: instead of: \x1B[m\n")
+                error += (f"\x1B[1m{commit}:1:{tag_repetition.start + 1}: \x1B[36mnote\x1B[39m:   fix: fix crash in parser\x1B[m\n")
+                error += (f"\x1B[1m{commit}:1:{tag_repetition.start + 1}: \x1B[36mnote\x1B[39m: write:\x1B[m\n")
+                error += (f"\x1B[1m{commit}:1:{tag_repetition.start + 1}: \x1B[36mnote\x1B[39m:   fix(parser): ensure next_token is initialized\x1B[m")
+            else:
+                error += (f"\x1B[1m{commit}:1:{tag_repetition.start + 1}: \x1B[36mnote\x1B[39m: try describing what this `{type_tag.text}` commit contains\x1B[m")
             yield error
 
     if len(message.subject) > 80:
