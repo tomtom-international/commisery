@@ -488,7 +488,19 @@ class GitVersion(NamedTuple):
         version_part = self._semver_tag_cleanup.sub('', self.tag_name)
         tag_version = SemVer.parse(version_part)
         if tag_version is None:
-            log.warning('Failed to parse version string %r as %s', version_part, format)
+            if log.isEnabledFor(logging.WARNING):
+                if self.commit_count is not None:
+                    describe_out = f"{self.tag_name}-{self.commit_count}"
+                else:
+                    describe_out = self.tag_name
+                if self.commit_hash is not None:
+                    if describe_out:
+                        describe_out += "-"
+                    describe_out += self.commit_hash
+                if describe_out and self.dirty:
+                    describe_out += "-dirty"
+
+                log.warning("Failed to parse version string %r as %s (from 'git describe' output %r)", version_part, format, describe_out)
             return None
 
         if (self.commit_count or self.dirty) and not tag_version.prerelease:
