@@ -325,7 +325,6 @@ def check_commit_message(commit, message, custom_accepted_tags=None):
             error += f"\x1B[1m{commit}:{line + 1}:{start + 1}: \x1B[36mnote\x1B[39m: prefer using --fixup when fixing previous commits in the same pull request\x1B[m"
             yield error
 
-
     if description is not None:
         yield from complain_about_excess_space(description)
 
@@ -438,6 +437,10 @@ def check_commit_message(commit, message, custom_accepted_tags=None):
         error += message.full_subject + '\n'
         error += ' ' * 79 + '\x1B[32m^' + '~' * (len(message.full_subject) - 80) + '\x1B[39m'
         yield error
+
+    # Fixup commit message bodies don't need to be checked, as their content will be discarded later.
+    if re.match(r'^fixup!\s+', message.full_subject):
+        return
 
     if len(message.lines) > 1 and message.lines[1]:
         error = f"\x1B[1m{commit}:2:1: \x1B[31merror\x1B[39m: commit message subject and body are not separated by an empty line\x1B[m\n"

@@ -16,6 +16,7 @@ from .. import checking
 import pytest
 import re
 import sys
+from textwrap import dedent
 
 
 def strip_terminal_ctrl_codes(msg):
@@ -72,6 +73,16 @@ def test_reject_referring_to_review_comments(msg):
     error, note = get_verification_failures(msg)
     assert re.search(r'\bcontext\b.*\binstead\b.*\brefer.*\breview.*\b(?:comment|message)', error)
     assert '--fixup' in note
+
+
+def test_accept_blacklisted_words_in_fixup_commit_body():
+    assert not get_verification_failures(dedent('''
+    fixup! fix: ATF_TestCasesNeedFix_RoadShields test cases
+
+    I like to help my colleagues understand my changes, so I provide extra
+    information in my fixups, some of which might be blacklisted,
+    like how I refer to review comments or perhaps edit online with Bitbucket.
+    '''))
 
 
 @pytest.mark.parametrize('msg', (
