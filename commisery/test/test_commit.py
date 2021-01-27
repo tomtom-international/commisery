@@ -15,6 +15,7 @@
 from ..commit import *
 
 import pytest
+import re
 
 
 def test_basic_message_strip_and_splitup():
@@ -177,6 +178,18 @@ def test_conventional_fixup_fix():
     assert not m.has_breaking_change()
     assert not m.has_new_feature()
     assert m.has_fix()
+
+
+def test_conventional_multiple_errors_in_message():
+    with pytest.raises(RuntimeError) as ex_info:
+        ConventionalCommit('Fix( ) something')
+
+    for regex in (
+        '.*upper[^\n]*case[^\n]*letters',
+        '.*scope[^\n]*whitespace',
+        '.*type[^\n]*tag[^\n]*upper[^\n]*case',
+    ):
+        assert re.match(regex, str(ex_info.value), flags=re.DOTALL) != None
 
 
 def test_multiple_fixups():
