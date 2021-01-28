@@ -200,9 +200,6 @@ class SemVer(object):
             return self.next_patch()
         return self
 
-    def pure_version(self):
-        return SemVer(self.major, self.minor, self.patch, self.prerelease, ())
-
     def __eq__(self, rhs):
         if not isinstance(rhs, self.__class__):
             return NotImplemented
@@ -373,9 +370,6 @@ class CarusoVer(object):
 
     def next_version_for_commits(self, commits):
         raise NotImplementedError
-
-    def pure_version(self):
-        return self
 
     def __eq__(self, rhs):
         if not isinstance(rhs, self.__class__):
