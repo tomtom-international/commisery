@@ -1,4 +1,4 @@
-# Copyright (c) 2018 - 2020 TomTom N.V. (https://tomtom.com)
+# Copyright (c) 2018 - 2021 TomTom N.V. (https://tomtom.com)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -523,7 +523,7 @@ class GitVersion(NamedTuple):
 def replace_version(fname, new_version, encoding=None, outfile=None):
 
     if outfile is None:
-        out = temp = open(fname + '.tmp', 'w', encoding=encoding)
+        out = temp = open(fname.with_suffix(fname.suffix + ".tmp"), "w", encoding=encoding)
     else:
         out = outfile
         temp = None
