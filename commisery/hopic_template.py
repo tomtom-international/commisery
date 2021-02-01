@@ -47,7 +47,7 @@ def commisery(volume_vars: Mapping[str, str], *, require_ticket: bool = False):
     hopic_git_info = hopic.build.HopicGitInfo.from_repo(volume_vars['WORKSPACE'])
 
     if hopic_git_info.target_commit and hopic_git_info.autosquashed_commits:
-        check_command = {
+        yield {
             'image': None,
             'description': "Checking all commits provided in the Pull Request",
             'sh': _commisery_command(
@@ -56,16 +56,14 @@ def commisery(volume_vars: Mapping[str, str], *, require_ticket: bool = False):
             ),
         }
     else:
-        check_command = {
+        yield {
             'image': None,
             'foreach': 'AUTOSQUASHED_COMMIT',
-            'sh': (sys.executable, '-m', 'commisery.checking', '${AUTOSQUASHED_COMMIT}'),
+            'sh': _commisery_command('${AUTOSQUASHED_COMMIT}'),
         }
 
-    return [
-        check_command,
-        {
+    yield {
+            'image': None,
             'description': "Checking merge commit. The subject and content of which may originate from your Pull Request's title and description",
             'sh': _commisery_command('HEAD', ticket=False),
-        }
-    ]
+    }
