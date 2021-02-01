@@ -65,6 +65,7 @@ def commisery(volume_vars: Mapping[str, str], *, require_ticket: bool = False):
     return [
         check_command,
         {
+            'image': None,
             'description': "Checking merge commit. The subject and content of which may originate from your Pull Request's title and description",
             'sh': _commisery_command('HEAD', ticket=False),
         }
