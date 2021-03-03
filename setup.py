@@ -1,4 +1,4 @@
-# Copyright (c) 2018 - 2020 TomTom N.V.
+# Copyright (c) 2018 - 2021 TomTom N.V.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ setup(
     py_modules=('commisery',),
     python_requires='>=3.6.5',
     install_requires=(
-      'Click>=7.1.2,<8',
+      'click>=7.1.2,<9',
       'click-log',
       'GitPython>=3,<4',
       'regex',
