@@ -72,7 +72,7 @@ def run_with_config(config, args, files={}, env=None, cfg_file='hopic-ci-config.
     return result
 
 
-@pytest.mark.skipif(_hopic_version < (1,15), reason="Hopic >= 1.15.0 not available")
+@pytest.mark.skipif(_hopic_version < (1,36), reason="Hopic >= 1.36.0 not available")
 def test_commisery_template(capfd):
     result = run_with_config(dedent('''\
                 phases:
@@ -86,11 +86,11 @@ def test_commisery_template(capfd):
     assert expanded[0]['image'] is None
     commits, head = [e['sh'] for e in expanded]
     assert 'commisery.checking' in commits
-    assert head[-3:] == ['commisery.checking', '--', 'HEAD']
+    assert head[-2:] == ["commisery.checking", "HEAD"]
 
 
 @pytest.mark.parametrize('ticket', [True, False])
-@pytest.mark.skipif(_hopic_version < (1,15), reason="Hopic >= 1.15.0 not available")
+@pytest.mark.skipif(_hopic_version < (1,36), reason="Hopic >= 1.36.0 not available")
 def test_commisery_template_range(capfd, monkeypatch, ticket):
     import hopic.build
 
@@ -118,6 +118,6 @@ def test_commisery_template_range(capfd, monkeypatch, ticket):
     assert expanded[0]['image'] is None
     commit_range, head = [e['sh'] for e in expanded]
     assert ('--ticket' in commit_range) == ticket
-    assert commit_range[-2:] == ['--', 'OUR_TARGET_COMMIT..OUR_AUTOSQUASHED_COMMIT_1']
-    assert 'commisery.checking' in commit_range
-    assert head[-3:] == ['commisery.checking', '--', 'HEAD']
+    assert commit_range[-1:] == ["OUR_TARGET_COMMIT..OUR_AUTOSQUASHED_COMMIT_1"]
+    assert "commisery.checking" in commit_range
+    assert head[-2:] == ["commisery.checking", "HEAD"]

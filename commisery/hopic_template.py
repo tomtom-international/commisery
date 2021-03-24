@@ -13,34 +13,16 @@
 # limitations under the License.
 
 import logging
-import sys
-from typing import Any, List, Mapping
+from typing import List, Mapping
 
 import hopic.build
+from hopic.template.utils import module_command
 
 log = logging.getLogger(__name__)
 
 
-def _kebabify(name: str):
-    return name.replace('_', '-')
-
-
-def _kwarg_to_arg(name, value):
-    if value is True:
-        return [f"--{_kebabify(name)}"]
-    elif value is not False and value is not None:
-        return [f"--{_kebabify(name)}", str(value)]
-    else:
-        return []
-
-
-def _kwargs_to_args(**kwargs: Mapping[str, Any]):
-    for key, val in kwargs.items():
-        yield from _kwarg_to_arg(key, val)
-
-
 def _commisery_command(*ranges: List[str], **kwargs):
-    return (sys.executable, '-m', 'commisery.checking', *_kwargs_to_args(**kwargs), '--', *ranges)
+    return module_command("commisery.checking", *ranges, **kwargs)
 
 
 def commisery(volume_vars: Mapping[str, str], *, require_ticket: bool = False):
