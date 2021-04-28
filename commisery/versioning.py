@@ -455,8 +455,8 @@ class GitVersion(NamedTuple):
         return not self.dirty and self.commit_count == 0
 
     # NOTE: while this is a regular language, it's one who's captures cannot be described if put in a single regex
-    _git_describe_commit_re = re.compile(r'^(?:(.*)-g)?([0-9a-f]+)$')
-    _git_describe_distance_re = re.compile(r'^(.*)-([0-9]+)$')
+    _git_describe_commit_re = re.compile(r'^(?:(.*)-g)?([0-9a-f]+)$')  # type: ignore # avoid complaints about fields starting with underscore
+    _git_describe_distance_re = re.compile(r'^(.*)-([0-9]+)$')         # type: ignore # avoid complaints about fields starting with underscore
 
     @classmethod
     def from_description(cls, description):
@@ -481,7 +481,7 @@ class GitVersion(NamedTuple):
 
         return cls(tag_name=tag_name, dirty=dirty, commit_count=commit_count, commit_hash=abbrev_commit_hash)
 
-    _semver_tag_cleanup = re.compile(r'^[^0-9]+')
+    _semver_tag_cleanup = re.compile(r'^[^0-9]+')  # type: ignore # avoid complaints about fields starting with underscore
 
     def to_version(self, format='semver', dirty_date=None):
         assert format == 'semver', f"Wrong format: {format}"
