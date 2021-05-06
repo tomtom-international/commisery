@@ -17,13 +17,17 @@ import logging
 import os
 import re
 from typing import (
-        NamedTuple,
-        Optional,
-    )
+    NamedTuple,
+    Optional,
+    Pattern,
+    Union,
+)
 
 from io import (
     open,
 )
+
+from .errors import VersioningError
 
 __all__ = (
     'CarusoVer',
@@ -61,7 +65,7 @@ class SemVer(object):
         * that this relationship is transitive
     """
     __slots__ = ('major', 'minor', 'patch', 'prerelease', 'build')
-    default_tag_name = '{version.major}.{version.minor}.{version.patch}'
+    default_tag_name = "{version.major}.{version.minor}.{version.patch}{version.prerelease_separator}{version.prerelease}"
 
     def __init__(self, major, minor, patch, prerelease, build):
         super().__init__()
@@ -83,12 +87,18 @@ class SemVer(object):
     def __repr__(self):
         return '%s(major=%r, minor=%r, patch=%r, prerelease=%r, build=%r)' % ((self.__class__.__name__,) + tuple(self))
 
-    def __str__(self):
+    @property
+    def prerelease_separator(self) -> str:
+        return "-" if self.prerelease else ""
+
+    @property
+    def build_separator(self) -> str:
+        return "+" if self.build else ""
+
+    def __str__(self) -> str:
         ver = '.'.join(str(x) for x in tuple(self)[:3])
-        if self.prerelease:
-            ver += '-' + str(self.prerelease)
-        if self.build:
-            ver += '+' + str(self.build)
+        ver += f"{self.prerelease_separator}{self.prerelease}"
+        ver += f"{self.build_separator}{self.build}"
         return ver
 
     version_re = re.compile(
@@ -266,7 +276,7 @@ class SemVer(object):
 class CarusoVer(object):
     """Caruso-specific versioning policy, overlaps with semantic versioning in syntax but definitely not compatible."""
     __slots__ = ('major', 'minor', 'patch', 'prerelease', 'increment', 'fix')
-    default_tag_name = '{version.major}.{version.minor}.{version.patch}+PI{version.increment}.{version.fix}'
+    default_tag_name = "{version.major}.{version.minor}.{version.patch}{version.prerelease_separator}{version.prerelease}+PI{version.increment}.{version.fix}"
 
     def __init__(self, major, minor, patch, prerelease, increment, fix):
         super().__init__()
@@ -289,10 +299,13 @@ class CarusoVer(object):
     def __repr__(self):
         return '%s(major=%r, minor=%r, patch=%r, prerelease=%r, increment=%r, fix=%r)' % ((self.__class__.__name__,) + tuple(self))
 
-    def __str__(self):
+    @property
+    def prerelease_separator(self) -> str:
+        return "-" if self.prerelease else ""
+
+    def __str__(self) -> str:
         ver = '.'.join(str(x) for x in tuple(self)[:3])
-        if self.prerelease:
-            ver += '-' + str(self.prerelease)
+        ver += f"{self.prerelease_separator}{self.prerelease}"
         ver += f"+PI{self.increment}.{self.fix}"
         return ver
 
@@ -426,6 +439,39 @@ class CarusoVer(object):
 
     def __ge__(self, rhs):
         return rhs <= self
+
+
+_rejected_hotfix_prefixes = frozenset((
+    "a",
+    "b",
+    "rc",
+    "alpha",
+    "beta",
+))
+
+
+def hotfix_id(pat: Union[str, Pattern], branch_name: Optional[str]) -> Optional[str]:
+    """
+    Extracts a hotfix ID from a hotfix branch name using the given regular expression.
+    """
+    if not isinstance(pat, Pattern):
+        pat = re.compile(pat)
+
+    idx = pat.groupindex.get("id", pat.groupindex.get("ID", 1))
+
+    m = pat.match(branch_name)
+    if not m:
+        return None
+
+    hotfix = m.group(idx)
+
+    if not re.match(r"^[a-zA-Z](?:[-a-zA-Z0-9]*[a-zA-Z0-9])?$", hotfix):
+        raise VersioningError(f"Hotfix ID '{hotfix}' is not a valid identifier")
+    prefix = re.split(r"[-.]", hotfix)[0]
+    if re.sub(r"[0-9]+$", "", prefix) in _rejected_hotfix_prefixes:
+        raise VersioningError(f"Hotfix ID '{hotfix}' starts with reserved prefix {prefix}")
+
+    return hotfix
 
 
 _fmts = {
