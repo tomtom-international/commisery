@@ -264,7 +264,7 @@ class SemVer(object):
         return len(self.prerelease) < len(rhs.prerelease)
 
     def __le__(self, rhs):
-        return self < rhs or self == rhs
+        return self < rhs or tuple(self)[:-1] == tuple(rhs)[:-1]
 
     def __gt__(self, rhs):
         return rhs < self
