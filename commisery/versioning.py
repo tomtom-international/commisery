@@ -454,6 +454,9 @@ def hotfix_id(pat: Union[str, Pattern], branch_name: Optional[str]) -> Optional[
     """
     Extracts a hotfix ID from a hotfix branch name using the given regular expression.
     """
+    if branch_name is None:
+        return None
+
     if not isinstance(pat, Pattern):
         pat = re.compile(pat)
 
