@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from collections import OrderedDict
+import datetime
 import json
 import os
 import re
@@ -100,13 +101,24 @@ def test_commisery_template(capfd):
 def test_commisery_template_range(capfd, monkeypatch, ticket):
     import hopic.build
 
+    class MockCommit:
+        def __init__(self, name: str):
+            self._name = name
+
+        def __str__(self) -> str:
+            return self._name
+
+        @property
+        def committed_datetime(self) -> datetime.datetime:
+            return datetime.datetime.utcfromtimestamp(0).replace(tzinfo=datetime.timezone.utc)
+
     class MockGitInfo():
-        source_commit = "OUR_SOURCE_COMMIT"
-        target_commit = 'OUR_TARGET_COMMIT'
-        submit_commit = "OUR_MERGE_COMMIT"
+        source_commit = MockCommit("OUR_SOURCE_COMMIT")
+        target_commit = MockCommit("OUR_TARGET_COMMIT")
+        submit_commit = MockCommit("OUR_MERGE_COMMIT")
         submit_ref = "master"
-        autosquashed_commit = "OUR_AUTOSQUASHED_COMMIT_1"
-        autosquashed_commits = [autosquashed_commit, 'OUR_AUTOSQUASHED_COMMIT_2']
+        autosquashed_commit = MockCommit("OUR_AUTOSQUASHED_COMMIT_1")
+        autosquashed_commits = [autosquashed_commit, MockCommit("OUR_AUTOSQUASHED_COMMIT_2")]
 
         @classmethod
         def from_repo(cls, *args):
