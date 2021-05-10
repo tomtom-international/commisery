@@ -12,8 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Mapping
+import re
+from typing import (
+    List,
+    Mapping,
+    Tuple,
+    Union,
+)
 
+from hopic.errors import ConfigurationError
 from hopic.template.utils import module_command
 
 
@@ -21,12 +28,25 @@ def _commisery_command(*ranges: str, **kwargs):
     return module_command("commisery.checking", *ranges, **kwargs)
 
 
-def commisery(volume_vars: Mapping[str, str], *, require_ticket: bool = False):
+def commisery(
+    volume_vars: Mapping[str, str],
+    *,
+    exclude_commits: Union[List[str], Tuple[str, ...], str] = (),
+    require_ticket: bool = False,
+):
+    if not isinstance(exclude_commits, (list, tuple)):
+        exclude_commits = (exclude_commits,)
+
+    for idx, commit in enumerate(exclude_commits):
+        if not re.match(r"^(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$", commit):
+            raise ConfigurationError(f"option 'commisery.exclude-commits[{idx}] is not a full SHA-1 or SHA-256 commit hash but '{commit}' instead")
+
     yield {
         'image': None,
         'description': "Checking all commits provided in the Pull Request",
         'sh': _commisery_command(
             '${AUTOSQUASHED_COMMITS}',
+            *(f"^{commit}" for commit in exclude_commits),
             ticket=require_ticket,
         ),
     }

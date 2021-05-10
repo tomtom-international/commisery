@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from collections import OrderedDict
+import datetime
 import json
 import os
 import re
@@ -100,25 +101,44 @@ def test_commisery_template(capfd):
 def test_commisery_template_range(capfd, monkeypatch, ticket):
     import hopic.build
 
+    class MockCommit:
+        def __init__(self, name: str):
+            self._name = name
+
+        def __str__(self) -> str:
+            return self._name
+
+        @property
+        def committed_datetime(self) -> datetime.datetime:
+            return datetime.datetime.utcfromtimestamp(0).replace(tzinfo=datetime.timezone.utc)
+
     class MockGitInfo():
-        source_commit = "OUR_SOURCE_COMMIT"
-        target_commit = 'OUR_TARGET_COMMIT'
-        submit_commit = "OUR_MERGE_COMMIT"
+        source_commit = MockCommit("OUR_SOURCE_COMMIT")
+        target_commit = MockCommit("OUR_TARGET_COMMIT")
+        submit_commit = MockCommit("OUR_MERGE_COMMIT")
         submit_ref = "master"
-        autosquashed_commit = "OUR_AUTOSQUASHED_COMMIT_1"
-        autosquashed_commits = [autosquashed_commit, 'OUR_AUTOSQUASHED_COMMIT_2']
+        autosquashed_commit = MockCommit("OUR_AUTOSQUASHED_COMMIT_1")
+        autosquashed_commits = [autosquashed_commit, MockCommit("OUR_AUTOSQUASHED_COMMIT_2")]
 
         @classmethod
         def from_repo(cls, *args):
             return cls()
 
+    rejected_commit = "0123456789abcdef0123456789abcdef01234567"
     expected_commit_ranges = [
-        "OUR_TARGET_COMMIT..OUR_AUTOSQUASHED_COMMIT_1",
-        "HEAD",
+        ["OUR_TARGET_COMMIT..OUR_AUTOSQUASHED_COMMIT_1", f"^{rejected_commit}"],
+        ["HEAD"],
     ]
     def mock_check_call(args, *popenargs, **kwargs):
         expected = expected_commit_ranges.pop(0)
-        assert args[-1] == expected
+
+        # strip: sys.executable -m commisery.checking
+        check_args = args[3:]
+        # Ignore "--options"
+        while check_args and check_args[0].startswith("--"):
+            check_args = check_args[1:]
+
+        assert check_args == expected
 
     monkeypatch.setattr(hopic.build.HopicGitInfo, "from_repo", MockGitInfo.from_repo)
     monkeypatch.setattr(hopic.build, 'HopicGitInfo', MockGitInfo)
@@ -129,6 +149,7 @@ def test_commisery_template_range(capfd, monkeypatch, ticket):
                   style:
                     commit-messages: !template
                       name: commisery
+                      exclude-commits: {rejected_commit}
                       require-ticket: {ticket}
                 '''),
         ("show-config",),
@@ -141,6 +162,6 @@ def test_commisery_template_range(capfd, monkeypatch, ticket):
     assert expanded[0]['image'] is None
     commit_range, head = [e['sh'] for e in expanded]
     assert ('--ticket' in commit_range) == ticket
-    assert commit_range[-1:] == ["${AUTOSQUASHED_COMMITS}"]
+    assert commit_range[-2:] == ["${AUTOSQUASHED_COMMITS}", f"^{rejected_commit}"]
     assert "commisery.checking" in commit_range
     assert head[-2:] == ["commisery.checking", "HEAD"]
