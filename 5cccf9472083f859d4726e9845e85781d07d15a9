@@ -1,0 +1,21 @@
+Committed-by: Hopic 1.39.3.dev2+ge95547e
+
+With Python version: 3.6.9
+
+And with these installed packages:
+click==7.1.2
+click-log==0.3.2
+commisery @ file:///jenkins/workspace/commisery_PR-31
+gitdb==4.0.7
+GitPython==3.1.14
+hopic @ git+https://github.com/tomtom-international/hopic.git@e95547ef0c28aec1f7646b9e2d237edf2ca489ce
+importlib-metadata==4.0.1
+python-dateutil==2.8.1
+PyYAML==5.4.1
+regex==2021.4.4
+six==1.16.0
+smmap==4.0.0
+stemming==1.0.1
+typeguard==2.10.0
+typing-extensions==3.10.0.0
+zipp==3.4.1
