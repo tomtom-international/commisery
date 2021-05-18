@@ -444,9 +444,16 @@ class CarusoVer(object):
 _rejected_hotfix_prefixes = frozenset((
     "a",
     "b",
+    "c",
     "rc",
     "alpha",
     "beta",
+    "pre",
+    "preview",
+    "post",
+    "rev",
+    "r",
+    "dev",
 ))
 
 
