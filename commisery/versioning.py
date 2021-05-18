@@ -20,6 +20,7 @@ from typing import (
     NamedTuple,
     Optional,
     Pattern,
+    Tuple,
     Union,
 )
 
@@ -457,12 +458,12 @@ _rejected_hotfix_prefixes = frozenset((
 ))
 
 
-def hotfix_id(pat: Union[str, Pattern], branch_name: Optional[str]) -> Optional[str]:
+def hotfix_id(pat: Union[str, Pattern], branch_name: Optional[str]) -> Tuple[str, ...]:
     """
     Extracts a hotfix ID from a hotfix branch name using the given regular expression.
     """
     if branch_name is None:
-        return None
+        return ()
 
     if not isinstance(pat, Pattern):
         pat = re.compile(pat)
@@ -471,17 +472,17 @@ def hotfix_id(pat: Union[str, Pattern], branch_name: Optional[str]) -> Optional[
 
     m = pat.match(branch_name)
     if not m:
-        return None
+        return ()
 
     hotfix = m.group(idx)
 
-    if not re.match(r"^[a-zA-Z](?:[-a-zA-Z0-9]*[a-zA-Z0-9])?$", hotfix):
+    if not re.match(r"^[a-zA-Z](?:[-.a-zA-Z0-9]*[a-zA-Z0-9])?$", hotfix):
         raise VersioningError(f"Hotfix ID '{hotfix}' is not a valid identifier")
     prefix = re.split(r"[-.]", hotfix)[0]
     if re.sub(r"[0-9]+$", "", prefix) in _rejected_hotfix_prefixes:
         raise VersioningError(f"Hotfix ID '{hotfix}' starts with reserved prefix {prefix}")
 
-    return hotfix
+    return tuple(hotfix.split("."))
 
 
 _fmts = {
