@@ -482,7 +482,7 @@ def hotfix_id(pat: Union[str, Pattern], branch_name: Optional[str]) -> Tuple[str
     if re.sub(r"[0-9]+$", "", prefix) in _rejected_hotfix_prefixes:
         raise VersioningError(f"Hotfix ID '{hotfix}' starts with reserved prefix {prefix}")
 
-    return tuple(hotfix.split("."))
+    return _IdentifierList(hotfix.split("."))
 
 
 _fmts = {
