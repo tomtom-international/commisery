@@ -15,25 +15,51 @@
 from datetime import datetime
 import logging
 import os
+from pathlib import PurePath
 import re
+import sys
 from typing import (
+    Any,
+    IO,
+    Iterable,
+    Iterator,
+    Mapping,
     NamedTuple,
+    NoReturn,
     Optional,
     Pattern,
     Tuple,
+    Type,
     Union,
 )
+
+if sys.version_info[:2] >= (3, 8):
+    from typing import (
+        Final,
+        Protocol,
+    )
+else:
+    from typing_extensions import (
+        Final,
+        Protocol,
+    )
 
 from io import (
     open,
 )
 
 from .errors import VersioningError
+from .types import (
+    Stringable,
+    TBD,
+)
+
 
 __all__ = (
     'CarusoVer',
     'GitVersion',
     'SemVer',
+    "Version",
     'read_version',
     'replace_version',
 )
@@ -42,11 +68,36 @@ log = logging.getLogger(__name__)
 
 
 class _IdentifierList(tuple):
-    def __str__(self):
+    def __str__(self) -> str:
         return '.'.join(self)
 
 
-class SemVer(object):
+class Version(Protocol):
+    version_re: Pattern  # mypy doesn't handle ClassVar
+    default_tag_name: str  # mypy doesn't handle ClassVar
+
+    major: int
+    minor: int
+    patch: int
+    prerelease: Tuple[str, ...]
+
+    def __iter__(self) -> Iterator[Any]: ...
+
+    @classmethod
+    def parse(cls, s: str) -> Optional["Version"]: ...
+
+    def next_version(self, bump: Any, **kwargs: Any) -> "Version": ...
+    def next_version_for_commits(self, commits: Iterable[TBD]) -> "Version": ...
+
+    def __eq__(self, rhs: Any) -> bool: ...
+    def __ne__(self, rhs: Any) -> bool: ...
+    def __lt__(self, rhs: Any) -> bool: ...
+    def __le__(self, rhs: Any) -> bool: ...
+    def __gt__(self, rhs: Any) -> bool: ...
+    def __ge__(self, rhs: Any) -> bool: ...
+
+
+class SemVer(Version):
     """
     Semantic versioning policy.
 
@@ -68,7 +119,7 @@ class SemVer(object):
     __slots__ = ('major', 'minor', 'patch', 'prerelease', 'build')
     default_tag_name = "{version.major}.{version.minor}.{version.patch}{version.prerelease_separator}{version.prerelease}"
 
-    def __init__(self, major, minor, patch, prerelease, build):
+    def __init__(self, major: int, minor: int, patch: int, prerelease: Tuple[str, ...], build: Tuple[str, ...]):
         super().__init__()
         self.major      = major
         self.minor      = minor
@@ -82,10 +133,10 @@ class SemVer(object):
         elif name in {'prerelease', 'build'}:
             return super().__setattr__(name, _IdentifierList(value))
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[TBD]:
         return iter(getattr(self, attr) for attr in self.__class__.__slots__)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '%s(major=%r, minor=%r, patch=%r, prerelease=%r, build=%r)' % ((self.__class__.__name__,) + tuple(self))
 
     @property
@@ -113,42 +164,40 @@ class SemVer(object):
     )
 
     @classmethod
-    def parse(cls, s):
+    def parse(cls, s: str) -> Optional["SemVer"]:
         m = cls.version_re.match(s)
         if not m:
             return None
 
-        major, minor, patch, prerelease, build = m.groups()
+        major, minor, patch = (int(c) for c in m.groups()[:3])
 
-        major, minor, patch = int(major), int(minor), int(patch)
-
-        if prerelease is None:
+        if m.group("prerelease") is not None:
+            prerelease = tuple(m.group("prerelease").split("."))
+        else:
             prerelease = ()
-        else:
-            prerelease = tuple(prerelease.split('.'))
 
-        if build is None:
-            build = ()
+        if m.group("build") is not None:
+            build = tuple(m.group("build").split("."))
         else:
-            build = tuple(build.split('.'))
+            build = ()
 
         return cls(major, minor, patch, prerelease, build)
 
-    def next_major(self):
+    def next_major(self) -> "SemVer":
         if self.prerelease and self.minor == 0 and self.patch == 0:
             # Just strip pre-release
             return SemVer(self.major, self.minor, self.patch, (), ())
 
         return SemVer(self.major + 1, 0, 0, (), ())
 
-    def next_minor(self):
+    def next_minor(self) -> "SemVer":
         if self.prerelease and self.patch == 0:
             # Just strip pre-release
             return SemVer(self.major, self.minor, self.patch, (), ())
 
         return SemVer(self.major, self.minor + 1, 0, (), ())
 
-    def next_patch(self):
+    def next_patch(self) -> "SemVer":
         if self.prerelease:
             # Just strip pre-release
             return SemVer(self.major, self.minor, self.patch, (), ())
@@ -156,7 +205,7 @@ class SemVer(object):
         return SemVer(self.major, self.minor, self.patch + 1, (), ())
 
     _number_re = re.compile(r'^(?:[1-9][0-9]*|0)$')
-    def next_prerelease(self, seed=None):  # noqa: E301 'expected 1 blank line'
+    def next_prerelease(self, seed: Optional[Stringable] = None) -> "SemVer":  # noqa: E301 'expected 1 blank line'
         # Special case for if we don't have a prerelease: bump patch and seed prerelease
         if not self.prerelease:
             if isinstance(seed, str):
@@ -184,18 +233,18 @@ class SemVer(object):
         )
         return SemVer(self.major, self.minor, self.patch, prerelease, ())
 
-    def next_version(self, bump='prerelease', *args, **kwargs):
+    def next_version(self, bump="prerelease", **kwargs: TBD) -> "SemVer":
         if bump == 'prerelease' and 'prerelease_seed' in kwargs:
             kwargs = kwargs.copy()
             kwargs['seed'] = kwargs.pop('prerelease_seed')
-        return {
+        return {  # type: ignore[operator]
             'prerelease': self.next_prerelease,
             'patch'     : self.next_patch,
             'minor'     : self.next_minor,
             'major'     : self.next_major,
-        }[bump](*args, **kwargs)
+        }[bump](**kwargs)
 
-    def next_version_for_commits(self, commits):
+    def next_version_for_commits(self, commits: Iterable[TBD]) -> "SemVer":
         has_new_feature = False
         has_fix = False
         for commit in commits:
@@ -211,7 +260,7 @@ class SemVer(object):
             return self.next_patch()
         return self
 
-    def __eq__(self, rhs):
+    def __eq__(self, rhs: object) -> bool:
         if not isinstance(rhs, self.__class__):
             return NotImplemented
         if tuple(self)[:4] != tuple(rhs)[:4]:
@@ -220,7 +269,7 @@ class SemVer(object):
             return NotImplemented
         return True
 
-    def __ne__(self, rhs):
+    def __ne__(self, rhs: object) -> bool:
         if not isinstance(rhs, self.__class__):
             return NotImplemented
         if tuple(self)[:4] != tuple(rhs)[:4]:
@@ -229,7 +278,9 @@ class SemVer(object):
             return NotImplemented
         return False
 
-    def __lt__(self, rhs):
+    def __lt__(self, rhs: object) -> bool:
+        if not isinstance(rhs, self.__class__):
+            return NotImplemented
         if tuple(self)[:3] < tuple(rhs)[:3]:
             return True
         if tuple(self)[:3] != tuple(rhs)[:3]:
@@ -243,6 +294,8 @@ class SemVer(object):
 
         assert self.prerelease and rhs.prerelease
 
+        a: Union[int, str]
+        b: Union[int, str]
         for a, b in zip(self.prerelease, rhs.prerelease):
             try:
                 a = int(a)
@@ -257,9 +310,9 @@ class SemVer(object):
                 return True
             elif isinstance(a, int) != isinstance(b, int):
                 return False
-            if a < b:
+            if a < b:  # type: ignore[operator]
                 return True
-            elif b < a:
+            elif b < a:  # type: ignore[operator]
                 return False
 
         return len(self.prerelease) < len(rhs.prerelease)
@@ -267,19 +320,19 @@ class SemVer(object):
     def __le__(self, rhs):
         return self < rhs or tuple(self)[:-1] == tuple(rhs)[:-1]
 
-    def __gt__(self, rhs):
+    def __gt__(self, rhs: object) -> bool:
         return rhs < self
 
-    def __ge__(self, rhs):
+    def __ge__(self, rhs: object) -> bool:
         return rhs <= self
 
 
-class CarusoVer(object):
+class CarusoVer(Version):
     """Caruso-specific versioning policy, overlaps with semantic versioning in syntax but definitely not compatible."""
     __slots__ = ('major', 'minor', 'patch', 'prerelease', 'increment', 'fix')
     default_tag_name = "{version.major}.{version.minor}.{version.patch}{version.prerelease_separator}{version.prerelease}+PI{version.increment}.{version.fix}"
 
-    def __init__(self, major, minor, patch, prerelease, increment, fix):
+    def __init__(self, major: int, minor: int, patch: int, prerelease: Tuple[str, ...], increment: int, fix: int):
         super().__init__()
         self.major      = major
         self.minor      = minor
@@ -294,10 +347,10 @@ class CarusoVer(object):
         elif name in {'prerelease'}:
             return super().__setattr__(name, _IdentifierList(value))
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[TBD]:
         return iter(getattr(self, attr) for attr in self.__class__.__slots__)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '%s(major=%r, minor=%r, patch=%r, prerelease=%r, increment=%r, fix=%r)' % ((self.__class__.__name__,) + tuple(self))
 
     @property
@@ -321,23 +374,25 @@ class CarusoVer(object):
     )
 
     @classmethod
-    def parse(cls, s):
+    def parse(cls, s: str) -> Optional["CarusoVer"]:
         m = cls.version_re.match(s)
         if not m:
             return None
 
-        major, minor, patch, prerelease, increment, fix = m.groups()
+        major = int(m.group("major"))
+        minor = int(m.group("minor"))
+        patch = int(m.group("patch"))
+        increment = int(m.group("increment"))
+        fix = int(m.group("fix"))
 
-        major, minor, patch, increment, fix = int(major), int(minor), int(patch), int(increment), int(fix)
-
-        if prerelease is None:
-            prerelease = ()
+        if m.group("prerelease") is not None:
+            prerelease = tuple(m.group("prerelease").split("."))
         else:
-            prerelease = tuple(prerelease.split('.'))
+            prerelease = ()
 
         return cls(major, minor, patch, prerelease, increment, fix)
 
-    def next_fix(self):
+    def next_fix(self) -> "CarusoVer":
         if self.prerelease:
             # Just strip pre-release
             return CarusoVer(self.major, self.minor, self.patch, (), self.increment, self.fix)
@@ -345,7 +400,7 @@ class CarusoVer(object):
         return CarusoVer(self.major, self.minor, self.patch, (), self.increment, self.fix + 1)
 
     _number_re = re.compile(r'^(?:[1-9][0-9]*|0)$')
-    def next_prerelease(self, seed=None):  # noqa: E301 'expected 1 blank line'
+    def next_prerelease(self, seed: Optional[Stringable] = None) -> "CarusoVer":  # noqa: E301 'expected 1 blank line'
         # Special case for if we don't have a prerelease: bump patch and seed prerelease
         if not self.prerelease:
             if isinstance(seed, str):
@@ -373,29 +428,31 @@ class CarusoVer(object):
         )
         return CarusoVer(self.major, self.minor, self.patch, prerelease, self.increment, self.fix)
 
-    def next_version(self, bump='prerelease', *args, **kwargs):
+    def next_version(self, bump="prerelease", **kwargs: TBD) -> "CarusoVer":
         if bump == 'prerelease' and 'prerelease_seed' in kwargs:
             kwargs = kwargs.copy()
             kwargs['seed'] = kwargs.pop('prerelease_seed')
-        return {
+        return {  # type: ignore[operator]
             'prerelease': self.next_prerelease,
             'fix'       : self.next_fix,
-        }[bump](*args, **kwargs)
+        }[bump](**kwargs)
 
-    def next_version_for_commits(self, commits):
+    def next_version_for_commits(self, commits: Iterable[TBD]) -> NoReturn:
         raise NotImplementedError
 
-    def __eq__(self, rhs):
+    def __eq__(self, rhs: object) -> bool:
         if not isinstance(rhs, self.__class__):
             return NotImplemented
         return tuple(self) == tuple(rhs)
 
-    def __ne__(self, rhs):
+    def __ne__(self, rhs: object) -> bool:
         if not isinstance(rhs, self.__class__):
             return NotImplemented
         return tuple(self) != tuple(rhs)
 
-    def __lt__(self, rhs):
+    def __lt__(self, rhs: object) -> bool:
+        if not isinstance(rhs, self.__class__):
+            return NotImplemented
         lhs_t = tuple(self)[:3] + tuple(self)[4:6]
         rhs_t = tuple(rhs)[:3] + tuple(rhs)[4:6]
         if lhs_t < rhs_t:
@@ -411,6 +468,8 @@ class CarusoVer(object):
 
         assert self.prerelease and rhs.prerelease
 
+        a: Union[str, int]
+        b: Union[str, int]
         for a, b in zip(self.prerelease, rhs.prerelease):
             try:
                 a = int(a)
@@ -425,20 +484,20 @@ class CarusoVer(object):
                 return True
             elif isinstance(a, int) != isinstance(b, int):
                 return False
-            if a < b:
+            if a < b:  # type: ignore[operator]
                 return True
-            elif b < a:
+            elif b < a:  # type: ignore[operator]
                 return False
 
         return len(self.prerelease) < len(rhs.prerelease)
 
-    def __le__(self, rhs):
+    def __le__(self, rhs: object) -> bool:
         return self < rhs or self == rhs
 
-    def __gt__(self, rhs):
+    def __gt__(self, rhs: object) -> bool:
         return rhs < self
 
-    def __ge__(self, rhs):
+    def __ge__(self, rhs: object) -> bool:
         return rhs <= self
 
 
@@ -485,13 +544,13 @@ def hotfix_id(pat: Union[str, Pattern], branch_name: Optional[str]) -> Tuple[str
     return _IdentifierList(hotfix.split("."))
 
 
-_fmts = {
+_fmts: Mapping[str, Type[Version]] = {
     'semver': SemVer,
     'carver': CarusoVer,
 }
 
 
-def read_version(fname, format='semver', encoding=None):
+def read_version(fname, format="semver", encoding: Optional[str] = None) -> Optional[Version]:
     fmt = _fmts[format]
 
     with open(fname, 'r', encoding=encoding) as f:
@@ -499,6 +558,15 @@ def read_version(fname, format='semver', encoding=None):
             version = fmt.parse(line)
             if version is not None:
                 return version
+
+    return None
+
+
+# NOTE: while this is a regular language, it's one who's captures cannot be described if put in a single regex
+_git_describe_commit_re: Final = re.compile(r"^(?:(.*)-g)?([0-9a-f]+)$")
+_git_describe_distance_re: Final = re.compile(r"^(.*)-([0-9]+)$")
+
+_semver_tag_cleanup: Final = re.compile(r"^[^0-9]+")
 
 
 class GitVersion(NamedTuple):
@@ -508,28 +576,24 @@ class GitVersion(NamedTuple):
     commit_hash  : Optional[str] = None
 
     @property
-    def exact(self):
+    def exact(self) -> bool:
         return not self.dirty and self.commit_count == 0
 
-    # NOTE: while this is a regular language, it's one who's captures cannot be described if put in a single regex
-    _git_describe_commit_re = re.compile(r'^(?:(.*)-g)?([0-9a-f]+)$')  # type: ignore # avoid complaints about fields starting with underscore
-    _git_describe_distance_re = re.compile(r'^(.*)-([0-9]+)$')         # type: ignore # avoid complaints about fields starting with underscore
-
     @classmethod
-    def from_description(cls, description):
+    def from_description(cls, description: str) -> "GitVersion":
         dirty = description.endswith('-dirty')
         if dirty:
             description = description[:-len('-dirty')]
 
         abbrev_commit_hash = None
-        commit_match = cls._git_describe_commit_re.match(description)
+        commit_match = _git_describe_commit_re.match(description)
         if commit_match:
             description, abbrev_commit_hash = commit_match.groups()
             if description is None:
                 description = ''
 
         commit_count = None
-        count_match = cls._git_describe_distance_re.match(description)
+        count_match = _git_describe_distance_re.match(description)
         if count_match:
             commit_count = int(count_match.group(2))
             tag_name = count_match.group(1)
@@ -538,11 +602,9 @@ class GitVersion(NamedTuple):
 
         return cls(tag_name=tag_name, dirty=dirty, commit_count=commit_count, commit_hash=abbrev_commit_hash)
 
-    _semver_tag_cleanup = re.compile(r'^[^0-9]+')  # type: ignore # avoid complaints about fields starting with underscore
-
-    def to_version(self, format='semver', dirty_date=None):
+    def to_version(self, format="semver", dirty_date: Optional[datetime] = None) -> Optional[Version]:
         assert format == 'semver', f"Wrong format: {format}"
-        version_part = self._semver_tag_cleanup.sub('', self.tag_name)
+        version_part = _semver_tag_cleanup.sub("", self.tag_name)
         tag_version = SemVer.parse(version_part)
         if tag_version is None:
             if log.isEnabledFor(logging.WARNING):
@@ -577,13 +639,12 @@ class GitVersion(NamedTuple):
         return tag_version
 
 
-def replace_version(fname, new_version, encoding=None, outfile=None):
+def replace_version(fname: PurePath, new_version: Version, encoding: Optional[str] = None, outfile: Optional[IO[str]] = None) -> None:
 
-    if outfile is None:
+    out = outfile
+    temp = None
+    if out is None:
         out = temp = open(fname.with_suffix(fname.suffix + ".tmp"), "w", encoding=encoding)
-    else:
-        out = outfile
-        temp = None
 
     try:
         with open(fname, 'r', encoding=encoding) as f:
@@ -591,7 +652,7 @@ def replace_version(fname, new_version, encoding=None, outfile=None):
                 # Replace version in source line
                 m = new_version.version_re.match(line)
                 if m:
-                    line = line[:m.start(1)] + str(new_version) + line[m.end(m.lastgroup):]
+                    line = line[:m.start(1)] + str(new_version) + line[m.end(m.lastindex or 0):]
                 out.write(line)
     except:  # noqa: E722: we re-raise, so it's not a problem
         if temp is not None:
