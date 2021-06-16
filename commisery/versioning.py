@@ -91,10 +91,10 @@ class Version(Protocol):
 
     def __eq__(self, rhs: Any) -> bool: ...
     def __ne__(self, rhs: Any) -> bool: ...
-    def __lt__(self, rhs: Any) -> bool: ...
-    def __le__(self, rhs: Any) -> bool: ...
-    def __gt__(self, rhs: Any) -> bool: ...
-    def __ge__(self, rhs: Any) -> bool: ...
+    def __lt__(self, rhs: "Version") -> bool: ...
+    def __le__(self, rhs: "Version") -> bool: ...
+    def __gt__(self, rhs: "Version") -> bool: ...
+    def __ge__(self, rhs: "Version") -> bool: ...
 
 
 class SemVer(Version):
@@ -278,7 +278,7 @@ class SemVer(Version):
             return NotImplemented
         return False
 
-    def __lt__(self, rhs: object) -> bool:
+    def __lt__(self, rhs: Version) -> bool:
         if not isinstance(rhs, self.__class__):
             return NotImplemented
         if tuple(self)[:3] < tuple(rhs)[:3]:
@@ -317,13 +317,13 @@ class SemVer(Version):
 
         return len(self.prerelease) < len(rhs.prerelease)
 
-    def __le__(self, rhs):
+    def __le__(self, rhs: Version) -> bool:
         return self < rhs or tuple(self)[:-1] == tuple(rhs)[:-1]
 
-    def __gt__(self, rhs: object) -> bool:
+    def __gt__(self, rhs: Version) -> bool:
         return rhs < self
 
-    def __ge__(self, rhs: object) -> bool:
+    def __ge__(self, rhs: Version) -> bool:
         return rhs <= self
 
 
@@ -450,7 +450,7 @@ class CarusoVer(Version):
             return NotImplemented
         return tuple(self) != tuple(rhs)
 
-    def __lt__(self, rhs: object) -> bool:
+    def __lt__(self, rhs: Version) -> bool:
         if not isinstance(rhs, self.__class__):
             return NotImplemented
         lhs_t = tuple(self)[:3] + tuple(self)[4:6]
@@ -491,13 +491,13 @@ class CarusoVer(Version):
 
         return len(self.prerelease) < len(rhs.prerelease)
 
-    def __le__(self, rhs: object) -> bool:
+    def __le__(self, rhs: Version) -> bool:
         return self < rhs or self == rhs
 
-    def __gt__(self, rhs: object) -> bool:
+    def __gt__(self, rhs: Version) -> bool:
         return rhs < self
 
-    def __ge__(self, rhs: object) -> bool:
+    def __ge__(self, rhs: Version) -> bool:
         return rhs <= self
 
 
