@@ -81,13 +81,16 @@ class Version(Protocol):
     patch: int
     prerelease: Tuple[str, ...]
 
+    # fmt: off
     def __iter__(self) -> Iterator[Any]: ...
 
     @classmethod
     def parse(cls, s: str) -> Optional["Version"]: ...
 
+    def next_prerelease(self, seed: Optional[Stringable] = None) -> "Version": ...
     def next_version(self, bump: Any, **kwargs: Any) -> "Version": ...
     def next_version_for_commits(self, commits: Iterable[TBD]) -> "Version": ...
+    def without_meta(self) -> "Version": ...
 
     def __eq__(self, rhs: Any) -> bool: ...
     def __ne__(self, rhs: Any) -> bool: ...
@@ -95,6 +98,7 @@ class Version(Protocol):
     def __le__(self, rhs: "Version") -> bool: ...
     def __gt__(self, rhs: "Version") -> bool: ...
     def __ge__(self, rhs: "Version") -> bool: ...
+    # fmt: on
 
 
 class SemVer(Version):
@@ -258,6 +262,9 @@ class SemVer(Version):
         elif has_fix:
             return self.next_patch()
         return self
+
+    def without_meta(self) -> "SemVer":
+        return SemVer(self.major, self.minor, self.patch, self.prerelease, ())
 
     def __eq__(self, rhs: object) -> bool:
         if not isinstance(rhs, self.__class__):
@@ -437,6 +444,9 @@ class CarusoVer(Version):
 
     def next_version_for_commits(self, commits: Iterable[TBD]) -> NoReturn:
         raise NotImplementedError
+
+    def without_meta(self) -> "CarusoVer":
+        return self
 
     def __eq__(self, rhs: object) -> bool:
         if not isinstance(rhs, self.__class__):
