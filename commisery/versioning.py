@@ -120,7 +120,6 @@ class SemVer(Version):
     default_tag_name = "{version.major}.{version.minor}.{version.patch}{version.prerelease_separator}{version.prerelease}"
 
     def __init__(self, major: int, minor: int, patch: int, prerelease: Tuple[str, ...], build: Tuple[str, ...]):
-        super().__init__()
         self.major      = major
         self.minor      = minor
         self.patch      = patch
@@ -333,7 +332,6 @@ class CarusoVer(Version):
     default_tag_name = "{version.major}.{version.minor}.{version.patch}{version.prerelease_separator}{version.prerelease}+PI{version.increment}.{version.fix}"
 
     def __init__(self, major: int, minor: int, patch: int, prerelease: Tuple[str, ...], increment: int, fix: int):
-        super().__init__()
         self.major      = major
         self.minor      = minor
         self.patch      = patch
