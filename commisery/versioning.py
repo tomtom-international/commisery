@@ -87,7 +87,7 @@ class Version(Protocol):
     @classmethod
     def parse(cls, s: str) -> Optional["Version"]: ...
 
-    def next_prerelease(self, seed: Optional[Stringable] = None) -> "Version": ...
+    def next_prerelease(self, seed: Union[None, str, Iterable[Stringable]] = None) -> "Version": ...
     def next_version(self, bump: Any, **kwargs: Any) -> "Version": ...
     def next_version_for_commits(self, commits: Iterable[TBD]) -> "Version": ...
     def without_meta(self) -> "Version": ...
@@ -208,7 +208,7 @@ class SemVer(Version):
         return SemVer(self.major, self.minor, self.patch + 1, (), ())
 
     _number_re = re.compile(r'^(?:[1-9][0-9]*|0)$')
-    def next_prerelease(self, seed: Optional[Stringable] = None) -> "SemVer":  # noqa: E301 'expected 1 blank line'
+    def next_prerelease(self, seed: Union[None, str, Iterable[Stringable]] = None) -> "SemVer":  # noqa: E301 'expected 1 blank line'
         # Special case for if we don't have a prerelease: bump patch and seed prerelease
         if not self.prerelease:
             if isinstance(seed, str):
@@ -405,7 +405,7 @@ class CarusoVer(Version):
         return CarusoVer(self.major, self.minor, self.patch, (), self.increment, self.fix + 1)
 
     _number_re = re.compile(r'^(?:[1-9][0-9]*|0)$')
-    def next_prerelease(self, seed: Optional[Stringable] = None) -> "CarusoVer":  # noqa: E301 'expected 1 blank line'
+    def next_prerelease(self, seed: Union[None, str, Iterable[Stringable]] = None) -> "CarusoVer":  # noqa: E301 'expected 1 blank line'
         # Special case for if we don't have a prerelease: bump patch and seed prerelease
         if not self.prerelease:
             if isinstance(seed, str):
