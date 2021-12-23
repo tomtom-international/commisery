@@ -611,9 +611,8 @@ class GitVersion(NamedTuple):
         return cls(tag_name=tag_name, dirty=dirty, commit_count=commit_count, commit_hash=abbrev_commit_hash)
 
     def to_version(self, format="semver", dirty_date: Optional[datetime] = None) -> Optional[Version]:
-        assert format == 'semver', f"Wrong format: {format}"
         version_part = _semver_tag_cleanup.sub("", self.tag_name)
-        tag_version = SemVer.parse(version_part)
+        tag_version = _fmts[format].parse(version_part)
         if tag_version is None:
             if log.isEnabledFor(logging.WARNING):
                 if self.commit_count is not None:
@@ -630,20 +629,26 @@ class GitVersion(NamedTuple):
                 log.warning("Failed to parse version string %r as %s (from 'git describe' output %r)", version_part, format, describe_out)
             return None
 
-        if (self.commit_count or self.dirty) and not tag_version.prerelease:
-            tag_version = tag_version.next_patch()
+        if self.commit_count or self.dirty:
+            # Ensure that 'dirty' commits sort before the next non-dirty commit by always having a commit count
+            commit_state_info = (str(self.commit_count) if self.commit_count else "0",)
 
-        if self.commit_count:
-            tag_version.prerelease = tag_version.prerelease + (str(self.commit_count),)
-        if self.dirty:
-            if dirty_date is None:
-                dirty_date = datetime.utcnow()
-            if not self.commit_count:
-                # Ensure that 'dirty' commits sort before the next non-dirty commit
-                tag_version.prerelease = tag_version.prerelease + ('0',)
-            tag_version.prerelease = tag_version.prerelease + ('dirty', dirty_date.strftime('%Y%m%d%H%M%S'))
+            if self.dirty:
+                if dirty_date is None:
+                    dirty_date = datetime.utcnow()
+                commit_state_info = (*commit_state_info, "dirty", f"{dirty_date:%Y%m%d%H%M%S}")
+
+            if tag_version.prerelease:
+                tag_version.prerelease = (*tag_version.prerelease, *commit_state_info)
+            else:
+                tag_version = tag_version.next_prerelease(seed=commit_state_info)
+
         if self.commit_hash is not None:
-            tag_version.build = tag_version.build + ('g' + self.commit_hash,)
+            try:
+                tag_version.build = (*tag_version.build, "g" + self.commit_hash)
+            except AttributeError:
+                pass
+
         return tag_version
 
 
