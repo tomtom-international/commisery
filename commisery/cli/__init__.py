@@ -41,7 +41,6 @@ log.addHandler(logging.NullHandler())
 @click.option('--ticket', '-j',
               default=None,
               is_flag=True,
-              multiple=True,
               help='When provided, the commit messages in the provided revision range '
                    + 'must contain at least one ticket reference, in the form of regex:\n'
                    + '\\b[A-Z]+-[0-9]+\\b'
