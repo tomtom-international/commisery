@@ -117,7 +117,7 @@ def check_commit_message(commit, message, custom_accepted_tags=None):
     if not message.lines[-1]:
         yield f"\x1B[1m{commit}:{len(message.lines)}:1: \x1B[31merror\x1B[39m: commit message body is followed by empty lines\x1B[m"
 
-    if re.match(r"^Merge (?:branch|tag) '.*?'(?:into '.*')?$", message.subject):
+    if re.match(r"^Merge (?:branch|tag) .*?(?: into .*)?$", message.subject):
         # Ignore branch/tag merges
         return
 
