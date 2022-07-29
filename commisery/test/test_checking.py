@@ -177,3 +177,15 @@ Implements #PIPE-123''')
 
     assert re.search(r'\bcontext\b.*\binstead\b.*\brefer.*\breview.*\b(?:comment|message)', error)
     assert '--fixup' in note
+
+
+@pytest.mark.parametrize('msg', (
+    "Merge branch 'main' into my-great-branch",
+    "Merge branch 'main' into 'my-great-branch'",
+    "Merge branch main into my-great-branch",
+    "Merge branch main into 'my-great-branch'",
+    "Merge branch main",
+))
+def test_merge_commit_ignore(msg):
+    assert not get_verification_failures(msg)
+
