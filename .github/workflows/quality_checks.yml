@@ -1,0 +1,49 @@
+# Copyright (c) 2022 - 2022 TomTom N.V.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+name: Quality Checks
+
+on:
+  pull_request:
+
+jobs:
+  conventional-commits:
+    name: Conventional Commits Compliance
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set-up Python
+        uses: actions/setup-python@v4
+        with: {python-version: '3.8'}
+
+      - name: Commisery
+        uses: KevinDeJong-TomTom/commisery-action@v1.1.1
+        with:
+          token: ${{ github.token }}
+          pull_request: ${{ github.event.number }}
+
+  keepachangelog:
+    name: Keepachangelog Compliance
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Set-up Python
+        uses: actions/setup-python@v4
+        with: {python-version: '3.7'}
+
+      - name: Validate CHANGELOG.md
+        uses: tomtom-international/keepachangelog-action@v0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
