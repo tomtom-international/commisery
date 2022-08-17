@@ -41,6 +41,9 @@ setup(
       'GitPython>=3,<4',
       'regex',
       'stemming>=1,<2',
+      'dataclasses>=0.8,<1; python_version < "3.7.0"',
+      'llvm-diagnostics>=3.0.0,<4',
+      'inquirer2==1.0.0',
     ),
     setup_requires=(
       'pytest-runner',
@@ -58,7 +61,9 @@ setup(
     use_scm_version={"relative_to": __file__},
     entry_points={
       'console_scripts': [
-        'commisery-verify-msg = commisery.cli:main',
+        'cm = commisery.cli:main',
+        'commisery = commisery.cli:main',
+        'commisery-verify-msg = commisery.cli:check',
         'commisery-verify-github-pullrequest = commisery.github:main [github]',
       ],
       'hopic.plugins.yaml': [

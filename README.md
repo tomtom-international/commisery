@@ -1,93 +1,165 @@
 # Commisery
 
 Commisery is a package to help check whether given commit messages adhere to [Conventional Commits].
-Specifically, it checks the syntax and some small aspects of the semantics.
+Specifically, it checks the syntax and some aspects of the semantics.
 
 The purpose of this is severalfold:
 
-1. Achieving a common layout for commit messages in order to help humans more quickly extract useful information from them.
+1. Achieving a common layout for commit messages in order to help humans more quickly extract useful information
+from them.
 2. Making these messages partially machine processable in order to classify changes for proper version management.
 3. Identifying a subset of common mistakes that render a message useless to your future self or colleagues.
 
 The latter goal usually requires your commit messages to answer these questions:
-* What: a short summary of _what_ you changed in the subject line.
-* Why: what the intended outcome of the change is (arguably the _most_ important piece of information that should go into a message).
-* How: if multiple approaches for achieving your goal were available, you also want to explain _why_ you chose the used implementation strategy.
+* **What**: a short summary of _what_ you changed in the subject line.
+* **Why**: what the intended outcome of the change is (arguably the _most_ important piece of information that should
+go into a message).
+* **How**: if multiple approaches for achieving your goal were available, you also want to explain _why_ you chose the
+used implementation strategy.
     - Note that you should not explain how your change achieves your goal in your commit message.
       That should be obvious from the code itself.
       If you cannot achieve that clarity with the used programming language, use comments within the code instead.
     - The commit message is primarily the place for documenting the _why_.
 
-Unfortunately, checking whether these last questions get answered is also the most difficult to do automatically.
-This tool only checks for a few common errors other than syntax errors:
-1. Usage of Jira ticket numbers in the subject line.
-    - Because the subject line is expensive real estate every character should be most efficiently used to convey meaning to humans.
-    - Jira ticket numbers are not equal to the tickets themselves and thus convey very little information.
-      These ticket numbers should go in message footers where tools can still extract them for automatic linking.
-2. Using non-imperative verb forms (adds, added or adding instead of add) in the subject line.
-    - These other forms convey no more meaning but use extra precious characters.
-3. Referring to review comments that cannot be found anywhere in the commit history itself.
-    - Commit messages should be self-contained.
-      Only mentioning that a commit is created in response to a review comment, without mentioning the reasoning of that comment is clearly not self-contained.
-    - Whenever your workflow permits it, prefer amending the original commit (or using `--fixup`) instead.
-    - If your workflow doesn't permit that, or it seems suboptimal in a given context, describe what, why and how you are changing (as mentioned before).
 
 ## Installation
 
 You can install this package with pip as follows:
 
 ```sh
-pip3 install --user --upgrade commisery
+$ python3 -m pip install --user --upgrade commisery
 ```
 
 ## Usage
 
-You can verify commit messages with the included CLI tool:
+Basic usage instructions:
 
-```sh
-$ commisery-verify-msg 8c3349528888a62382afd056eea058843dfb7690
-$ commisery-verify-msg master
-$ commisery-verify-msg :/'refactor'
-$ commisery-verify-msg .git/COMMIT_EDITMSG
-$ commisery-verify-msg my-own-message.txt
+```
+Usage: cm [OPTIONS] COMMAND [ARGS]...
+
+  Manages conventional commit messages
+
+Options:
+  -c, --config TEXT               Path towards a configuration file
+  -t, --tags TEXT                 Comma-separated list of accepted
+                                  conventional commit tags to allow aside from
+                                  the default "feat" and "fix". If omitted,
+                                  uses the following list: fix, feat, build,
+                                  chore, ci, docs, perf, refactor, revert,
+                                  style, test, improvement
+
+  -l, --max-subject-length INTEGER
+                                  Maximum characters allowed in the subject of
+                                  the commit message
+
+  -d, --disable TEXT              List of commit message rules to disable. Can
+                                  be one of: C001, C002, C003, C004, C005,
+                                  C006, C007, C008, C009, C010, C011, C012,
+                                  C013, C014, C015, C016, C017, C018, C019,
+                                  C020
+
+  -v, --verbosity LVL             Either CRITICAL, ERROR, WARNING, INFO or
+                                  DEBUG
+
+  --help                          Show this message and exit.
+
+Commands:
+  check     Checks whether commit messages adhere to the Convention Commits...
+  commit    Creates a conventional commit
+  overview  Lists the accepted Conventional Commit tags and Rules (incl.
 ```
 
-The exit code of that tool will be non-zero if and only if it found errors in the given commit message.
+### Create and Commit a new Conventional Commit
 
-After that you can use it as a hook in Git to check messages you wrote by creating a `.git/hooks/commit-msg` file with these contents:
+You can use `cm commit` to help you create and commit a Conventional Commit using an interactive wizard:
+
+![example](./resources/commit_example.png)
+
+### Verify commit messages
+
+You can verify single commit messages with the included CLI tool:
+
+```sh
+$ cm check 8c3349528888a62382afd056eea058843dfb7690
+$ cm check master
+$ cm check :/'refactor'
+$ cm check .git/COMMIT_EDITMSG
+$ cm check my-own-message.txt
+```
+
+Alternatively, it handles commit-ish revision ranges adhering to the `git rev-list` format:
+
+```sh
+$ cm check HEAD~..HEAD
+$ cm check HEAD^2~4 ^HEAD^2~6 ^HEAD^3~2
+$ cm check master..feat/my-feature
+$ cm check HEAD@{yesterday}..HEAD
+$ cm check HEAD@{upstream}..HEAD
+$ cm check :/'refactor'..HEAD
+$ cm check 2fff3d8..8c33495
+```
+
+The exit code of will be non-zero *if and only if* it found errors in the given commit message(s).
+
+> **NOTE**: *in order to remain backwards compatible, the command `commisery-verify-msg` can be used as alternative for `cm check`*
+
+### (Pre-) Commit hook
+
+You can use `commisery` as a hook in Git to check messages you wrote by creating a `.git/hooks/commit-msg` file with these contents:
 ```sh
 #!/bin/sh
 exec commisery-verify-msg "$@"
 ```
 
-The CLI tool also handles commit-ish revision ranges adhering to the `git rev-list` format:
+### Configuration
 
-```sh
-$ commisery-verify-msg HEAD~..HEAD
-$ commisery-verify-msg HEAD^2~4 ^HEAD^2~6 ^HEAD^3~2
-$ commisery-verify-msg master..feat/my-feature
-$ commisery-verify-msg HEAD@{yesterday}..HEAD
-$ commisery-verify-msg HEAD@{upstream}..HEAD
-$ commisery-verify-msg :/'refactor'..HEAD
-$ commisery-verify-msg 2fff3d8..8c33495
+### Overview of the current configuration
+
+You can run `cm overview` to visualize the current configuration, i.e.:
+
+![example](./resources/overview_example.png)
+
+## Change configuration parameters
+
+You can configure `commisery` using a YAML-based configuration file, i.e.
+
+```yaml
+max-subject-length: 120
+tags:
+  docs: Documentation changes not part of the API
+  example: Changes to example code in the repository
+disabled:
+  - C001
+  - C018
 ```
 
-Commisery allows for custom behavior as well:
- - a custom list of accepted Conventional Commit tags can be provided
- - the presence of a Jira-style ticket reference within the specified commit message (or range) can be enforced
+| Item | Default value |Description | 
+| --- | --- | --- |
+| `max-subject-length` | `80` | The maximum length of the subject of the commit message |
+| `tags` | `fix`, `feat`, `build`, `chore`, `ci`, `docs`, `perf`, `refactor`, `revert`, `style`, `test`, `improvement` | Additional tags (including description). These tags will not result in a version bump.<br><br>**NOTE:** The tags `feat` and `fix` will automatically be provided |
+| `disabled` | `None` | List of rules to disable as part of the checker |
 
-Refer to the built-in help for information on these optional parameters.
+By default `commisery` will search for the file `.commisery.yml`.
+You can specify a different file with the `--config` command line argument, i.e.
 
 ```sh
-$ commisery-verify-msg --help
+$ cm --config .conventional-commit-config [COMMAND]
 ```
+
+Additionally, you can change these parameters using the cli, i.e.:
+```sh
+$ cm --tags example --max-subject-length 120 --disable C001 [COMMAND]
+```
+
+
+
 
 ## GitHub support
 
 You can use Commisery based on a GitHub PullRequest by installing the package with the extra `github`:
 
 ```sh
-pip3 install --user --upgrade commisery[github]
+$ python3 -m pip install --user --upgrade commisery[github]
 ```
 
 You can verify the Pull Request title and commit messages with the included CLI tool:

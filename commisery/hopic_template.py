@@ -1,4 +1,4 @@
-# Copyright (c) 2020 - 2021 TomTom N.V.
+# Copyright (c) 2022 - 2022 TomTom N.V. (https://tomtom.com)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,20 +39,22 @@ def commisery(
 
     for idx, commit in enumerate(exclude_commits):
         if not re.match(r"^(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$", commit):
-            raise ConfigurationError(f"option 'commisery.exclude-commits[{idx}] is not a full SHA-1 or SHA-256 commit hash but '{commit}' instead")
+            raise ConfigurationError(
+                f"option 'commisery.exclude-commits[{idx}] is not a full SHA-1 or SHA-256 commit hash but '{commit}' instead"
+            )
 
     yield {
-        'image': None,
-        'description': "Checking all commits provided in the Pull Request",
-        'sh': _commisery_command(
-            '${AUTOSQUASHED_COMMITS}',
+        "image": None,
+        "description": "Checking all commits provided in the Pull Request",
+        "sh": _commisery_command(
+            "${AUTOSQUASHED_COMMITS}",
             *(f"^{commit}" for commit in exclude_commits),
             ticket=require_ticket,
         ),
     }
 
     yield {
-            'image': None,
-            'description': "Checking merge commit. The subject and content of which may originate from your Pull Request's title and description",
-            'sh': _commisery_command('HEAD', ticket=False),
+        "image": None,
+        "description": "Checking merge commit. The subject and content of which may originate from your Pull Request's title and description",
+        "sh": _commisery_command("HEAD", ticket=False),
     }

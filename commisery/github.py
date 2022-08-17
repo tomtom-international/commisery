@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020-2020, TomTom (http://tomtom.com).
+# Copyright (c) 2022 - 2022 TomTom N.V. (https://tomtom.com)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#   http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,43 +16,47 @@
 
 import click
 import tempfile
+from commisery.config import Configuration
 
 from github import Github
 from . import checking
 
+DEPENDABOT_USER = "dependabot[bot]"
+DEPENDABOT_SUBJECT_LENGTH_OVERRIDE = 160
 
-def check_message(message: str) -> bool:
+
+def check_message(message: str, config: Configuration) -> bool:
     with tempfile.NamedTemporaryFile() as tmp:
-        tmp.write(message.encode('UTF-8'))
+        tmp.write(message.encode("UTF-8"))
         tmp.flush()
-
-        return checking.check_commit(tmp.name) == 0
+        return checking.check_commit(tmp.name, config) == 0
 
 
 @click.command()
-@click.option('-t', '--token',
-              required=True, help='GitHub Token')
-@click.option('-r', '--repository',
-              required=True,  help='GitHub repository')
-@click.option('-p', '--pull-request-id',
-              required=True, help='Pull Request identifier')
+@click.option("-t", "--token", required=True, help="GitHub Token")
+@click.option("-r", "--repository", required=True, help="GitHub repository")
+@click.option("-p", "--pull-request-id", required=True, help="Pull Request identifier")
 def main(token: str, repository: str, pull_request_id: int) -> int:
     errors = 0
 
     repo = Github(token).get_repo(repository)
     pr = repo.get_pull(int(pull_request_id))
 
-    if not check_message(pr.title):
+    config = Configuration()
+    if pr.user.login == DEPENDABOT_USER:
+        config.max_subject_length = DEPENDABOT_SUBJECT_LENGTH_OVERRIDE
+
+    if not check_message(pr.title, config):
         errors += 1
 
     commits = pr.get_commits()
 
     for commit_info in commits:
-        if not check_message(commit_info.commit.message):
+        if not check_message(commit_info.commit.message, config):
             errors += 1
 
     exit(1 if errors else 0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
