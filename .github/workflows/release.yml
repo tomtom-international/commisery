@@ -13,17 +13,43 @@
 # limitations under the License.
 
 ---
-name: Upload Python Package
+name: Release and Deploy Python Package
 
-concurrency: changelog
+concurrency: deployment
 
 on:
-  release:
-    types: [released]
+  push:
+    branches:
+      - master
 
 jobs:
+  update-changelog:
+    name: Release Changelog
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.keepachangelog.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set-up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.7'
+
+      - name: Release Changelog
+        uses: ./
+        id: keepachangelog
+        with:
+          tag: v{version}
+          token: ${{ secrets.RELEASE_TOKEN }}
+          publish: true
+
   deploy:
     runs-on: ubuntu-latest
+    needs: update-changelog
+    if: needs.update-changelog.outputs.version != ''
+
     env:
       PYPI_USERNAME: ${{ secrets.PYPI_USERNAME }}
       PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
@@ -33,7 +59,8 @@ jobs:
 
       - name: Set-up Python
         uses: actions/setup-python@v4
-        with: {python-version: 3.7}
+        with:
+          python-version: 3.7
 
       - name: Install dependencies
         run: |
@@ -42,19 +69,3 @@ jobs:
 
       - name: Publish Commisery
         run: tox -e publish
-
-  update-changelog:
-    name: Release Changelog
-    needs: deploy
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Set-up Python
-        uses: actions/setup-python@v4
-        with: {python-version: '3.7'}
-
-      - name: Validate Changelog
-        uses: tomtom-international/keepachangelog-action@v0
-        with:
-          deploy: release
-          token: ${{ secrets.GITHUB_TOKEN }}

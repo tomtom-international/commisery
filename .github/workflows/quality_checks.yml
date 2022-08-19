@@ -26,10 +26,11 @@ jobs:
     steps:
       - name: Set-up Python
         uses: actions/setup-python@v4
-        with: {python-version: '3.8'}
+        with:
+          python-version: '3.8'
 
       - name: Commisery
-        uses: KevinDeJong-TomTom/commisery-action@v1.1.1
+        uses: tomtom-international/commisery-action@v1
         with:
           token: ${{ github.token }}
           pull_request: ${{ github.event.number }}
@@ -37,13 +38,14 @@ jobs:
   keepachangelog:
     name: Keepachangelog Compliance
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Set-up Python
         uses: actions/setup-python@v4
-        with: {python-version: '3.7'}
+        with:
+          python-version: '3.7'
 
       - name: Validate CHANGELOG.md
-        uses: tomtom-international/keepachangelog-action@v0
+        uses: tomtom-international/keepachangelog-action@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
