@@ -43,7 +43,7 @@ setup(
       'stemming>=1,<2',
       'dataclasses>=0.8,<1; python_version < "3.7.0"',
       'llvm-diagnostics>=3.0.0,<4',
-      'inquirer2==1.0.0',
+      'inquirer2==1.0.1',
     ),
     setup_requires=(
       'pytest-runner',
