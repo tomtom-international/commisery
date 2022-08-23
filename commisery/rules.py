@@ -18,7 +18,7 @@ import re
 
 import llvm_diagnostics as logging
 
-from commisery.commit import CommitMessage
+from commisery.commit import BREAKING_CHANGE_TOKEN, CommitMessage
 from commisery.config import Configuration, get_default_rules
 
 
@@ -471,6 +471,31 @@ def C020_git_trailer_contains_whitespace(
                 line=f"{item.token}: {item.value[0]}",
                 column_number=logging.Range(0, len(item.token)),
             )
+
+
+def C022_footer_contains_blank_line(
+    message: CommitMessage, _: Configuration
+):  # pylint: disable=C0103
+    """Footer should not contain any blank line(s)"""
+    for item in message.footers:
+        if not item.token or len(item.value) == 0:
+            raise logging.Error(
+                message=C022_footer_contains_blank_line.__doc__,
+            )
+
+
+def C023_breaking_change_must_be_first_git_trailer(
+    message: CommitMessage, _: Configuration
+):  # pylint: disable=C0103
+    """The BREAKING CHANGE git-trailer should be the first element in the footer"""
+    for idx, item in enumerate(message.footers):
+        if item.token == BREAKING_CHANGE_TOKEN:
+            if idx != 0:
+                raise logging.Error(
+                    message=C023_breaking_change_must_be_first_git_trailer.__doc__,
+                    line=f"{item.token}: {item.value[0]}",
+                    column_number=logging.Range(0, len(item.token)),
+                )
 
 
 def validate_commit_message_rule(

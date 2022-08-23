@@ -361,7 +361,7 @@ def test_C019_subject_contains_issue_reference(message, exception):
             dedent(
                 """\
                 fix: add something
-                
+
                 Addresses #12
                 Acked-by: Anton Indrawan <Anton.Indrawan@tomtom.com>
             """
@@ -372,7 +372,7 @@ def test_C019_subject_contains_issue_reference(message, exception):
             dedent(
                 """\
                 fix: add something
-                
+
                 Addresses #12
                 Acked-by : Anton Indrawan <Anton.Indrawan@tomtom.com>
             """
@@ -383,14 +383,191 @@ def test_C019_subject_contains_issue_reference(message, exception):
             dedent(
                 """\
                 fix: add something
-                
+
                 Addresses #12
                 Acked by: Anton Indrawan <Anton.Indrawan@tomtom.com>
             """
             ),
             True,
         ),
+        (
+            dedent(
+                """\
+                Merge #13: feat: add documentation publication
+
+                * feat: add documentation publication
+
+                    Implements NAV-27889
+
+                    Signed-off-by: Alexandru Lazarescu <alexandru.lazarescu@tomtom.com>
+
+                * feat: add documentation publication
+
+                    Implements NAV-27889
+
+                    Signed-off-by: Alexandru Lazarescu <alexandru.lazarescu@tomtom.com>
+
+                Acked by: Martijn Leijssen <Martijn.Leijssen@tomtom.com>
+                Merged-by: Hopic 1.22.1.dev37+g1b1a265
+                """
+            ),
+            True
+        ),
+        (
+            dedent(
+                """\
+                Merge #13: feat: add documentation publication
+
+                * feat: add documentation publication
+
+                    Implements NAV-27889
+
+                    Signed-off-by: Alexandru Lazarescu <alexandru.lazarescu@tomtom.com>
+
+                * feat: add documentation publication
+
+                    Implements NAV-27889
+
+                    Signed-off-by: Alexandru Lazarescu <alexandru.lazarescu@tomtom.com>
+
+                Acked-by: Martijn Leijssen <Martijn.Leijssen@tomtom.com>
+                Merged-by: Hopic 1.22.1.dev37+g1b1a265
+                """
+            ),
+            False,
+        ),
     ),
 )
 def test_C020_git_trailer_contains_whitespace(message, exception):
     __validate_rule(rules.C020_git_trailer_contains_whitespace, message, exception)
+
+
+@pytest.mark.parametrize(
+    "message, exception",
+    (
+        (
+            dedent(
+                """\
+                fix: add something
+
+                Addresses #12
+                Acked-by: Anton Indrawan <Anton.Indrawan@tomtom.com>
+            """
+            ),
+            False,
+        ),
+        (
+            dedent(
+                """\
+                fix: add something
+
+                Addresses #12
+
+                Acked-by: Anton Indrawan <Anton.Indrawan@tomtom.com>
+            """
+            ),
+            False,
+        ),
+        (
+            dedent(
+                """\
+                fix: add something
+
+                BREAKING-CHANGE: This is a breaking change
+                Addresses #12
+                Acked-by: Anton Indrawan <Anton.Indrawan@tomtom.com>
+            """
+            ),
+            False,
+        ),
+        (
+            dedent(
+                """\
+                fix: add something
+
+                BREAKING-CHANGE: This is a breaking change
+
+                Addresses #12
+                Acked-by: Anton Indrawan <Anton.Indrawan@tomtom.com>
+            """
+            ),
+            False,
+        ),
+        (
+            dedent(
+                """\
+                fix: add something
+
+                BREAKING-CHANGE: This is a breaking change
+
+                Addresses #12
+
+                Acked-by: Anton Indrawan <Anton.Indrawan@tomtom.com>
+            """
+            ),
+            True,
+        ),
+    ),
+)
+def test_C022_footer_contains_blank_line(message, exception):
+    __validate_rule(rules.C022_footer_contains_blank_line, message, exception)
+
+
+@pytest.mark.parametrize(
+    "message, exception",
+    (
+        (
+            dedent(
+                """\
+                fix: add something
+
+                Addresses #12
+                Acked-by: Anton Indrawan <Anton.Indrawan@tomtom.com>
+            """
+            ),
+            False,
+        ),
+        (
+            dedent(
+                """\
+                fix: add something
+
+                BREAKING-CHANGE: This is a breaking change
+                Addresses #12
+                Acked-by: Anton Indrawan <Anton.Indrawan@tomtom.com>
+            """
+            ),
+            False,
+        ),
+        (
+            dedent(
+                """\
+                fix: add something
+
+                BREAKING-CHANGE: This is a breaking change
+
+                Addresses #12
+                Acked-by: Anton Indrawan <Anton.Indrawan@tomtom.com>
+            """
+            ),
+            False,
+        ),
+        (
+            dedent(
+                """\
+                fix: add something
+
+                Addresses #12
+                BREAKING-CHANGE: This is a breaking change
+
+                Acked-by: Anton Indrawan <Anton.Indrawan@tomtom.com>
+            """
+            ),
+            True,
+        ),
+    ),
+)
+def test_C023_breaking_change_must_be_first_git_trailer(message, exception):
+    __validate_rule(
+        rules.C023_breaking_change_must_be_first_git_trailer, message, exception
+    )

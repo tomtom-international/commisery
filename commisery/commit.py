@@ -20,6 +20,8 @@ from typing import Any, Optional, Sequence
 
 from commisery.config import Configuration
 
+BREAKING_CHANGE_TOKEN = "BREAKING CHANGE"
+
 CONVENTIONAL_COMMIT_REGEX = re.compile(
     r"""
         # 1. Commits MUST be prefixed with a type, which consists of a noun, feat, fix, etc.,
@@ -82,7 +84,7 @@ class Footer:
 
         # 16. `BREAKING-CHANGE` MUST be synonymous with `BREAKING CHANGE`, when used as a token in a footer.
         if token == "BREAKING-CHANGE":
-            token = "BREAKING CHANGE"
+            token = BREAKING_CHANGE_TOKEN
 
         self._token = token
 
@@ -151,6 +153,7 @@ class CommitMessage:
 
         subject = message[0]
         footers, body = [], []
+        has_breaking_change = False
 
         # Retrieve subject, body and footers
         if len(message) > 1:
@@ -163,13 +166,23 @@ class CommitMessage:
                     footers.append(
                         Footer(matches.group("token"), [matches.group("value")])
                     )
+                    if footers[-1].token == BREAKING_CHANGE_TOKEN:
+                        has_breaking_change = True
 
                 # Multiline trailers use folding
                 elif len(footers) > 0 and line.startswith(" "):
                     footers[-1].value.append(line)
 
+                # Allow blank lines after BREAKING[- ]CHANGE
+                elif has_breaking_change and not line:
+                    # Insert empty footer items for blank lines between
+                    # git trailers following BREAKING CHANGE
+                    if footers[-1].token != BREAKING_CHANGE_TOKEN:
+                        footers.append(Footer("", [""]))
+                    continue
+
                 # Discard detected git trailers as non-compliant item has been found
-                elif len(line) > 0:
+                else:
                     end_of_body = idx
                     footers = []
 
@@ -212,7 +225,7 @@ class CommitMessage:
 
         for footer in self.footers:
             # 16. `BREAKING-CHANGE` MUST be synonymous with `BREAKING CHANGE`, when used as a token in a footer.
-            if footer.token in ["BREAKING CHANGE"]:
+            if footer.token == BREAKING_CHANGE_TOKEN:
                 return True
 
         return False
