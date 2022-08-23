@@ -98,11 +98,11 @@ class CommitMessage:
     """Conventional Commit Message"""
 
     body: Optional[Sequence[str]] = field(default_factory=list)
-    breaking_change: str = None
-    description: str = None
+    breaking_change: Optional[str] = None
+    description: Optional[str] = None
     footers: Optional[Sequence[Footer]] = field(default_factory=list)
-    hexsha: str = None
-    separator: str = None
+    hexsha: Optional[str] = None
+    separator: Optional[str] = None
     scope: Optional[str] = None
     type: Optional[str] = None
 
