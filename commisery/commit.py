@@ -192,7 +192,7 @@ class CommitMessage:
 
         return self.type.lower() == "merge"
 
-    def has_fix(self):
+    def has_fix(self, config: Optional[Configuration] = None):
         """Returns whether the commit message is a (bug) fix"""
 
         # 3. The type fix MUST be used when a commit represents a bug fix for your application.
@@ -221,7 +221,7 @@ class CommitMessage:
 def parse_commit_message(message, policy=None, strict=False):
     """Creates a Commit Message based on the provided policy"""
 
-    from commisery.checking import validate_commit_message
+    from commisery.checking import validate_commit_message  # pylint: disable=C0415
 
     commit_message = CommitMessage.from_message(message)
 

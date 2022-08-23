@@ -14,11 +14,12 @@
 
 from textwrap import dedent
 import pytest
+
+import llvm_diagnostics as logger
+
 from commisery.commit import CommitMessage
 from commisery.config import Configuration
 from commisery import rules
-
-import llvm_diagnostics as logger
 
 
 def __validate_rule(rule, message, exception):
@@ -39,7 +40,7 @@ def __validate_rule(rule, message, exception):
         ("FEAT: placeholder description", True),
     ),
 )
-def test_C001_non_lower_case_type(message, exception):
+def test_C001_non_lower_case_type(message, exception):  # pylint: disable=C0103
     __validate_rule(rules.C001_non_lower_case_type, message, exception)
 
 
@@ -50,7 +51,7 @@ def test_C001_non_lower_case_type(message, exception):
             dedent(
                 """\
                 feat: placeholder description
-            
+
                 placeholder body
             """
             ),
@@ -69,8 +70,8 @@ def test_C001_non_lower_case_type(message, exception):
             dedent(
                 """\
                 feat: placeholder description
-                
-                
+
+
                 placeholder body
             """
             ),
@@ -79,7 +80,9 @@ def test_C001_non_lower_case_type(message, exception):
         ("feat: PLACEHOLDER description", False),
     ),
 )
-def test_C002_one_whiteline_between_subject_and_body(message, exception):
+def test_C002_one_whiteline_between_subject_and_body(
+    message, exception
+):  # pylint: disable=C0103
     __validate_rule(
         rules.C002_one_whiteline_between_subject_and_body, message, exception
     )
@@ -94,7 +97,7 @@ def test_C002_one_whiteline_between_subject_and_body(message, exception):
         ("feat: PLACEHOLDER description", True),
     ),
 )
-def test_C003_title_case_description(message, exception):
+def test_C003_title_case_description(message, exception):  # pylint: disable=C0103
     __validate_rule(rules.C003_title_case_description, message, exception)
 
 
@@ -107,7 +110,7 @@ def test_C003_title_case_description(message, exception):
         ("fox: placeholder description", True),
     ),
 )
-def test_C004_unknown_tag_type(message, exception):
+def test_C004_unknown_tag_type(message, exception):  # pylint: disable=C0103
     __validate_rule(rules.C004_unknown_tag_type, message, exception)
 
 
@@ -119,7 +122,9 @@ def test_C004_unknown_tag_type(message, exception):
         ("feat:  placeholder description", True),
     ),
 )
-def test_C005_separator_contains_trailing_whitespaces(message, exception):
+def test_C005_separator_contains_trailing_whitespaces(
+    message, exception
+):  # pylint: disable=C0103
     __validate_rule(
         rules.C005_separator_contains_trailing_whitespaces, message, exception
     )
@@ -136,7 +141,7 @@ def test_C005_separator_contains_trailing_whitespaces(message, exception):
         ("feat()!: placeholder description", True),
     ),
 )
-def test_C006_scope_should_not_be_empty(message, exception):
+def test_C006_scope_should_not_be_empty(message, exception):  # pylint: disable=C0103
     __validate_rule(rules.C006_scope_should_not_be_empty, message, exception)
 
 
@@ -151,7 +156,7 @@ def test_C006_scope_should_not_be_empty(message, exception):
         ("feat( )!: placeholder description", True),
     ),
 )
-def test_C007_scope_contains_whitespace(message, exception):
+def test_C007_scope_contains_whitespace(message, exception):  # pylint: disable=C0103
     __validate_rule(rules.C007_scope_contains_whitespace, message, exception)
 
 
@@ -164,7 +169,7 @@ def test_C007_scope_contains_whitespace(message, exception):
         ("feat(test) placeholder description", True),
     ),
 )
-def test_C008_missing_separator(message, exception):
+def test_C008_missing_separator(message, exception):  # pylint: disable=C0103
     __validate_rule(rules.C008_missing_separator, message, exception)
 
 
@@ -180,7 +185,7 @@ def test_C008_missing_separator(message, exception):
         ("feat(test):", True),
     ),
 )
-def test_C009_missing_description(message, exception):
+def test_C009_missing_description(message, exception):  # pylint: disable=C0103
     __validate_rule(rules.C009_missing_description, message, exception)
 
 
@@ -194,7 +199,9 @@ def test_C009_missing_description(message, exception):
         ("feat ! : placeholder description", True),
     ),
 )
-def test_C010_breaking_indicator_contains_whitespacing(message, exception):
+def test_C010_breaking_indicator_contains_whitespacing(
+    message, exception
+):  # pylint: disable=C0103
     __validate_rule(
         rules.C010_breaking_indicator_contains_whitespacing, message, exception
     )
@@ -209,7 +216,9 @@ def test_C010_breaking_indicator_contains_whitespacing(message, exception):
         ("feat!!!: placeholder description", True),
     ),
 )
-def test_C011_only_single_breaking_indicator(message, exception):
+def test_C011_only_single_breaking_indicator(
+    message, exception
+):  # pylint: disable=C0103
     __validate_rule(rules.C011_only_single_breaking_indicator, message, exception)
 
 
@@ -223,7 +232,7 @@ def test_C011_only_single_breaking_indicator(message, exception):
         ("(test)!: placeholder description", True),
     ),
 )
-def test_C012_missing_type_tag(message, exception):
+def test_C012_missing_type_tag(message, exception):  # pylint: disable=C0103
     __validate_rule(rules.C012_missing_type_tag, message, exception)
 
 
@@ -237,7 +246,9 @@ def test_C012_missing_type_tag(message, exception):
         ("feat(test)!: placeholder description?", True),
     ),
 )
-def test_C013_subject_should_not_end_with_punctuation(message, exception):
+def test_C013_subject_should_not_end_with_punctuation(
+    message, exception
+):  # pylint: disable=C0103
     __validate_rule(
         rules.C013_subject_should_not_end_with_punctuation, message, exception
     )
@@ -256,7 +267,9 @@ def test_C013_subject_should_not_end_with_punctuation(message, exception):
         ),
     ),
 )
-def test_C014_subject_exceeds_line_lenght_limit(message, exception):
+def test_C014_subject_exceeds_line_lenght_limit(
+    message, exception
+):  # pylint: disable=C0103
     __validate_rule(rules.C014_subject_exceeds_line_lenght_limit, message, exception)
 
 
@@ -270,7 +283,7 @@ def test_C014_subject_exceeds_line_lenght_limit(message, exception):
         ("test(test)!: test it", True),
     ),
 )
-def test_C015_no_repeated_tags(message, exception):
+def test_C015_no_repeated_tags(message, exception):  # pylint: disable=C0103
     __validate_rule(rules.C015_no_repeated_tags, message, exception)
 
 
@@ -283,7 +296,9 @@ def test_C015_no_repeated_tags(message, exception):
         ("fix(test): adding something", True),
     ),
 )
-def test_C016_description_in_imperative_mood(message, exception):
+def test_C016_description_in_imperative_mood(
+    message, exception
+):  # pylint: disable=C0103
     __validate_rule(rules.C016_description_in_imperative_mood, message, exception)
 
 
@@ -295,7 +310,9 @@ def test_C016_description_in_imperative_mood(message, exception):
     ),
 )
 @pytest.mark.skip(reason="this rules has not yet been implemented")
-def test_C017_subject_contains_review_remarks(message, exception):
+def test_C017_subject_contains_review_remarks(
+    message, exception
+):  # pylint: disable=C0103
     __validate_rule(rules.C017_subject_contains_review_remarks, message, exception)
 
 
@@ -306,7 +323,7 @@ def test_C017_subject_contains_review_remarks(message, exception):
             dedent(
                 """\
                 feat: placeholder description
-            
+
                 placeholder body
             """
             ),
@@ -316,8 +333,8 @@ def test_C017_subject_contains_review_remarks(message, exception):
             dedent(
                 """\
                 feat: placeholder description
-                
-                
+
+
                 placeholder body
             """
             ),
@@ -335,7 +352,9 @@ def test_C017_subject_contains_review_remarks(message, exception):
         ),
     ),
 )
-def test_C018_missing_empty_line_between_subject_and_body(message, exception):
+def test_C018_missing_empty_line_between_subject_and_body(
+    message, exception
+):  # pylint: disable=C0103
     __validate_rule(
         rules.C018_missing_empty_line_between_subject_and_body, message, exception
     )
@@ -350,7 +369,9 @@ def test_C018_missing_empty_line_between_subject_and_body(message, exception):
         ("fix: added something for NAV-1234", True),
     ),
 )
-def test_C019_subject_contains_issue_reference(message, exception):
+def test_C019_subject_contains_issue_reference(
+    message, exception
+):  # pylint: disable=C0103
     __validate_rule(rules.C019_subject_contains_issue_reference, message, exception)
 
 
@@ -361,7 +382,7 @@ def test_C019_subject_contains_issue_reference(message, exception):
             dedent(
                 """\
                 fix: add something
-                
+
                 Addresses #12
                 Acked-by: Anton Indrawan <Anton.Indrawan@tomtom.com>
             """
@@ -372,7 +393,7 @@ def test_C019_subject_contains_issue_reference(message, exception):
             dedent(
                 """\
                 fix: add something
-                
+
                 Addresses #12
                 Acked-by : Anton Indrawan <Anton.Indrawan@tomtom.com>
             """
@@ -383,7 +404,7 @@ def test_C019_subject_contains_issue_reference(message, exception):
             dedent(
                 """\
                 fix: add something
-                
+
                 Addresses #12
                 Acked by: Anton Indrawan <Anton.Indrawan@tomtom.com>
             """
@@ -392,5 +413,7 @@ def test_C019_subject_contains_issue_reference(message, exception):
         ),
     ),
 )
-def test_C020_git_trailer_contains_whitespace(message, exception):
+def test_C020_git_trailer_contains_whitespace(
+    message, exception
+):  # pylint: disable=C0103
     __validate_rule(rules.C020_git_trailer_contains_whitespace, message, exception)

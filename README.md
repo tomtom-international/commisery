@@ -126,8 +126,10 @@ You can configure `commisery` using a YAML-based configuration file, i.e.
 ```yaml
 max-subject-length: 120
 tags:
-  docs: Documentation changes not part of the API
   example: Changes to example code in the repository
+  docs:
+    description: Documentation changes part of the API
+    bump: yes  # Should bump the PATCH version
 disabled:
   - C001
   - C018

@@ -44,6 +44,55 @@ tags:
     assert list(config.tags.keys()) == ["chore", "docs", "fix", "feat"]
 
 
+def test_tag_configuration_from_valid_yaml(tmp_path):
+    """Validates custom tag configurations using valid yaml format"""
+    config_path = tmp_path / ".commisery.yml"
+    config_path.write_text(
+        """\
+tags:
+  chore: This is a chore! snooooore!
+  shame:
+    description: This commit brings shame to my family.
+  docs:
+    description: Dude, our documentation is part of our API.
+    bump: true
+"""
+    )
+
+    config = Configuration.from_yaml(config_path)
+    assert config.tags.get("chore").description == "This is a chore! snooooore!"
+    assert not config.tags.get("chore").bump
+
+    assert (
+        config.tags.get("shame").description == "This commit brings shame to my family."
+    )
+    assert not config.tags.get("shame").bump
+
+    assert (
+        config.tags.get("docs").description
+        == "Dude, our documentation is part of our API."
+    )
+    assert config.tags.get("docs").bump
+
+
+def test_tag_configuration_from_invalid_yaml(tmp_path):
+    """Validates custom tag configurations using valid yaml format"""
+    config_path = tmp_path / ".commisery.yml"
+    config_path.write_text(
+        """\
+tags:
+  chore: -1
+  shame:
+    does-not-exist: This commit brings shame to my family.
+  docs:
+    description: 42
+    bump: Strange!
+"""
+    )
+    with pytest.raises(Exception):
+        Configuration.from_yaml(config_path)
+
+
 def test_configuration_from_invalid_yaml(tmp_path):
     """Validates initialization using invalid yaml format"""
     config_path = tmp_path / ".commisery.yml"

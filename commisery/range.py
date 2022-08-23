@@ -69,7 +69,7 @@ def check_commit_rev_range(revision_range, config: Configuration):
                 error_count += check_commit(commit.hexsha, config=config)
 
             log.debug(
-                "Done checking commits{}".format(
+                "Done checking commits{}".format(  # pylint: disable=C0209,W1202
                     f', {error_count} error{"s" if error_count > 1 else ""} found'
                     if error_count
                     else "",

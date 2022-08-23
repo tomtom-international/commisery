@@ -14,18 +14,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import click
 import tempfile
-from commisery.config import Configuration
-
+import click
 from github import Github
-from . import checking
+
+from commisery.config import Configuration
+from commisery import checking
 
 DEPENDABOT_USER = "dependabot[bot]"
 DEPENDABOT_SUBJECT_LENGTH_OVERRIDE = 160
 
 
 def check_message(message: str, config: Configuration) -> bool:
+    """Validates message for compliance"""
     with tempfile.NamedTemporaryFile() as tmp:
         tmp.write(message.encode("UTF-8"))
         tmp.flush()
@@ -37,19 +38,20 @@ def check_message(message: str, config: Configuration) -> bool:
 @click.option("-r", "--repository", required=True, help="GitHub repository")
 @click.option("-p", "--pull-request-id", required=True, help="Pull Request identifier")
 def main(token: str, repository: str, pull_request_id: int) -> int:
+    """GitHub Conventional Commit Message checker"""
     errors = 0
 
     repo = Github(token).get_repo(repository)
-    pr = repo.get_pull(int(pull_request_id))
+    pull_request = repo.get_pull(int(pull_request_id))
 
     config = Configuration()
-    if pr.user.login == DEPENDABOT_USER:
+    if pull_request.user.login == DEPENDABOT_USER:
         config.max_subject_length = DEPENDABOT_SUBJECT_LENGTH_OVERRIDE
 
-    if not check_message(pr.title, config):
+    if not check_message(pull_request.title, config):
         errors += 1
 
-    commits = pr.get_commits()
+    commits = pull_request.get_commits()
 
     for commit_info in commits:
         if not check_message(commit_info.commit.message, config):
@@ -59,4 +61,4 @@ def main(token: str, repository: str, pull_request_id: int) -> int:
 
 
 if __name__ == "__main__":
-    main()
+    main(None, None, None)

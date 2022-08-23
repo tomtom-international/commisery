@@ -29,11 +29,12 @@ def _commisery_command(*ranges: str, **kwargs):
 
 
 def commisery(
-    volume_vars: Mapping[str, str],
+    _: Mapping[str, str],
     *,
     exclude_commits: Union[List[str], Tuple[str, ...], str] = (),
     require_ticket: bool = False,
 ):
+    """Hopic Template entry point"""
     if not isinstance(exclude_commits, (list, tuple)):
         exclude_commits = (exclude_commits,)
 

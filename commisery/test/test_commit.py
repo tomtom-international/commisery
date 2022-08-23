@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from commisery.checking import validate_commit_message
-from commisery.config import Configuration
 import pytest
 from ..commit import CommitMessage, Footer
 
@@ -91,9 +89,7 @@ def test_conventional_fix():
 
 
 def test_conventional_new_feature():
-    message = CommitMessage.from_message(
-        """feat: make execution possible with 'hopic' as command"""
-    )
+    message = CommitMessage.from_message("""feat: adding new API to the docs""")
     assert message.type == "feat"
     assert message.scope is None
     assert not message.has_breaking_change()

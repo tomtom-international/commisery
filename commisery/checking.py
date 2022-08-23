@@ -14,7 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This is a simplistic implementation of checking adherance to Conventional Commits https://www.conventionalcommits.org/
+# This is a simplistic implementation of checking adherance to
+# Conventional Commits https://www.conventionalcommits.org/
 
 import re
 import subprocess
