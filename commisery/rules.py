@@ -76,16 +76,22 @@ def C003_title_case_description(
     except logging.Error:
         return
 
-    first_word = message.description[0]
-    if not first_word.islower():
+    first_word = message.description.split()[0]
+
+    alpha_index = (
+        first_word.find(next(filter(str.isalpha, first_word)))
+        if len(first_word) > 1
+        else 0
+    )
+    if not first_word[alpha_index].islower() and first_word[alpha_index].isalpha():
         raise logging.Error(
             message=C003_title_case_description.__doc__,
             line=message.subject,
             column_number=logging.Range(
-                start=message.subject.find(message.description) + 1,
-                range=len(message.description),
+                start=message.subject.find(message.description) + alpha_index + 1,
+                range=1,
             ),
-            expectations=first_word.lower() + message.description[1:],
+            expectations=first_word[alpha_index].lower(),
         )
 
 
@@ -472,6 +478,23 @@ def C020_git_trailer_contains_whitespace(
                 column_number=logging.Range(0, len(item.token)),
             )
 
+def C021_description_should_start_with_alphabetic_character(
+    message: CommitMessage, _: Configuration
+):  # pylint: disable=C0103
+    """The commit message's description must start with an alphabetic character"""
+    # No need to verify merge commits
+    if message.is_merge():
+        return
+
+    if message.description and not message.description[0].isalpha():
+        raise logging.Error(
+            message=C021_description_should_start_with_alphabetic_character.__doc__,
+            line=message.subject,
+            column_number=logging.Range(
+                start=message.subject.find(message.description) + 1,
+                range=1,
+            ),
+        )
 
 def C022_footer_contains_blank_line(
     message: CommitMessage, _: Configuration
@@ -482,7 +505,6 @@ def C022_footer_contains_blank_line(
             raise logging.Error(
                 message=C022_footer_contains_blank_line.__doc__,
             )
-
 
 def C023_breaking_change_must_be_first_git_trailer(
     message: CommitMessage, _: Configuration
@@ -496,7 +518,6 @@ def C023_breaking_change_must_be_first_git_trailer(
                     line=f"{item.token}: {item.value[0]}",
                     column_number=logging.Range(0, len(item.token)),
                 )
-
 
 def validate_commit_message_rule(
     rule: str, message: CommitMessage, config: Configuration

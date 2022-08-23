@@ -92,6 +92,10 @@ def test_C002_one_whiteline_between_subject_and_body(message, exception):
         ("feat: pLaceholder description", False),
         ("feat: Placeholder description", True),
         ("feat: PLACEHOLDER description", True),
+        ("feat: 'Placeholder' description", True),
+        ("feat: 'PLaceholder' description", True),
+        ("feat:  ", False),
+        ("feat: '", False),
     ),
 )
 def test_C003_title_case_description(message, exception):
@@ -441,6 +445,25 @@ def test_C019_subject_contains_issue_reference(message, exception):
 def test_C020_git_trailer_contains_whitespace(message, exception):
     __validate_rule(rules.C020_git_trailer_contains_whitespace, message, exception)
 
+@pytest.mark.parametrize(
+    "message, exception",
+    (
+        ("feat: placeholder description", False),
+        ("feat: pLaceholder description", False),
+        ("feat: Placeholder description", False),
+        ("feat: PLACEHOLDER description", False),
+        ("feat: 'Placeholder' description", True),
+        ("feat: 'PLaceholder' description", True),
+        ("feat:  ", False),
+        ("feat: '", True),
+    ),
+)
+def test_C021_description_should_start_with_alphabetic_character(message, exception):
+    __validate_rule(
+        rules.C021_description_should_start_with_alphabetic_character,
+        message,
+        exception,
+    )
 
 @pytest.mark.parametrize(
     "message, exception",
