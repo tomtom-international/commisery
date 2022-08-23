@@ -201,13 +201,13 @@ This should reduce the amount of Jenkins master/slave interactions and
 their associated Groovy script engine "context switches" (state
 serialization and restoration). As a result performance should increase.
 
+vv The next two trailers will be rejected as there is a blank line inbetween vv
 Addresses #279 by adding a test framework.
-
-^^ the above line will be removed due to the fact that text has been injected inbetween footers
-
 Addresses #301 due to the performance improvements
  made to the scripting engine
 
+Addresses #167 by updating testing framework dependencies
+ and validating behavior
 Acked-by: Anton Indrawan <Anton.Indrawan@tomtom.com>
 Acked-by: Joost Muller <Joost.Muller@tomtom.com>
 Acked-by: Martijn Leijssen <Martijn.Leijssen@tomtom.com>
@@ -218,12 +218,17 @@ Merged-by: Hopic 0.10.2.dev7+g840ca0c
     assert message.type == "improvement"
     assert message.scope == "groovy"
 
+    # NOTE: Unfortunately we cannot make a correct judgement for the
+    #       rejected git-trailers, for now we will ignore them and
+    #       they will be considered to be part of the body of the
+    #       commit message.
+
     assert message.footers == [
         Footer(
             "Addresses",
             [
-                "#301 due to the performance improvements",
-                " made to the scripting engine",
+                "#167 by updating testing framework dependencies",
+                " and validating behavior",
             ],
         ),
         Footer("Acked-by", ["Anton Indrawan <Anton.Indrawan@tomtom.com>"]),
