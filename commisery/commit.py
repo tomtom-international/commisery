@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Commit Message"""
+
 import os
 import re
 
@@ -32,12 +34,12 @@ CONVENTIONAL_COMMIT_REGEX = re.compile(
         # followed by the OPTIONAL scope, OPTIONAL !, and REQUIRED terminal colon and space.
         (?P<breaking_change>((\s*)+[!]+(\s*)?)?)
         # 5. A description MUST immediately follow the colon and space after the type/scope prefix.
-        # The description is a short summary of the code changes, e.g., fix: array parsing issue when
-        # multiple spaces were contained in string.
+        # The description is a short summary of the code changes, e.g., fix: array parsing issue
+        # when multiple spaces were contained in string.
         (?P<separator>((\s+)?:?(\s+)?))
         # 5. A description MUST immediately follow the colon and space after the type/scope prefix.
-        # The description is a short summary of the code changes, e.g., fix: array parsing issue when
-        # multiple spaces were contained in string.
+        # The description is a short summary of the code changes, e.g., fix: array parsing issue
+        # when multiple spaces were contained in string.
         (?P<description>.*)
         """,
     re.VERBOSE,
@@ -45,13 +47,13 @@ CONVENTIONAL_COMMIT_REGEX = re.compile(
 
 FOOTER_REGEX = re.compile(
     r"""
-        # 8. One or more footers MAY be provided one blank line after the body. Each footer MUST consist
-        # of a word token, followed by either a :<space> or <space># separator, followed by a string value
-        # (this is inspired by the git trailer convention).
+        # 8. One or more footers MAY be provided one blank line after the body. Each footer MUST
+        # consist of a word token, followed by either a :<space> or <space># separator, followed
+        # by a string value (this is inspired by the git trailer convention).
         #
-        # 9. A footer’s token MUST use - in place of whitespace characters, e.g., Acked-by (this helps
-        # differentiate the footer section from a multi-paragraph body). An exception is made for
-        # BREAKING CHANGE, which MAY also be used as a token.
+        # 9. A footer’s token MUST use - in place of whitespace characters, e.g., Acked-by (this
+        # helps differentiate the footer section from a multi-paragraph body). An exception is
+        # made for BREAKING CHANGE, which MAY also be used as a token.
         ^(?P<token>[\w\- ]+|BREAKING\sCHANGE)(?::[ ]|[ ](?=[#]))(?P<value>.*)
     """,
     re.VERBOSE,
@@ -80,13 +82,16 @@ class Footer:
     def token(self, token: str):
         """Sets the token name"""
 
-        # 16. `BREAKING-CHANGE` MUST be synonymous with `BREAKING CHANGE`, when used as a token in a footer.
+        # 16. `BREAKING-CHANGE` MUST be synonymous with `BREAKING CHANGE`,
+        # when used as a token in a footer.
         if token == "BREAKING-CHANGE":
             token = "BREAKING CHANGE"
 
         self._token = token
 
-    def __repr__(self):
+    def __str__(self):
+        assert len(self.value) > 0
+
         if self.value[0].startswith("#"):
             return f"{self.token} {os.linesep.join(self.value)}"
 
@@ -97,27 +102,24 @@ class Footer:
 class CommitMessage:
     """Conventional Commit Message"""
 
-    body: Optional[Sequence[str]] = field(default_factory=list)
-    breaking_change: str = None
-    description: str = None
-    footers: Optional[Sequence[Footer]] = field(default_factory=list)
-    hexsha: str = None
-    separator: str = None
+    body: Sequence[str] = field(default_factory=list)
+    breaking_change: Optional[str] = None
+    description: Optional[str] = None
+    footers: Sequence[Footer] = field(default_factory=list)
+    hexsha: Optional[str] = None
     scope: Optional[str] = None
+    separator: Optional[str] = None
     type: Optional[str] = None
 
     @property
     def subject(self):
         """Composes the subject line from the provided elements"""
-
         subject = f"{self.type}"
 
         if self.scope:
             subject += f"({self.scope})"
 
-        subject += f"{self.breaking_change}{self.separator}{self.description}"
-
-        return subject
+        return f"{subject}{self.breaking_change}{self.separator}{self.description}"
 
     @property
     def squashed_subject(self):
@@ -129,7 +131,7 @@ class CommitMessage:
         """To maintain backwards compatibility"""
         return self.subject
 
-    def __repr__(self):
+    def __str__(self):
         """Full commit message representation"""
         message = self.subject
 
@@ -196,14 +198,14 @@ class CommitMessage:
         """Returns whether the commit message is a (bug) fix"""
 
         # 3. The type fix MUST be used when a commit represents a bug fix for your application.
-        return self.type.lower() == "fix"
+        return self.type == "fix"
 
     def has_new_feature(self):
         """Returns whether the commit contains a new feature"""
 
         # 2. The type feat MUST be used when a commit adds a new feature to your application
         # or library.
-        return self.type.lower() == "feat"
+        return self.type == "feat"
 
     def has_breaking_change(self):
         """Returns whether the commit contains a breaking change"""
@@ -211,7 +213,8 @@ class CommitMessage:
             return True
 
         for footer in self.footers:
-            # 16. `BREAKING-CHANGE` MUST be synonymous with `BREAKING CHANGE`, when used as a token in a footer.
+            # 16. `BREAKING-CHANGE` MUST be synonymous with `BREAKING CHANGE`,
+            # when used as a token in a footer.
             if footer.token in ["BREAKING CHANGE"]:
                 return True
 
@@ -221,7 +224,7 @@ class CommitMessage:
 def parse_commit_message(message, policy=None, strict=False):
     """Creates a Commit Message based on the provided policy"""
 
-    from commisery.checking import validate_commit_message
+    from commisery.checking import validate_commit_message  # pylint: disable=C0415
 
     commit_message = CommitMessage.from_message(message)
 
