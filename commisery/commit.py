@@ -192,7 +192,7 @@ class CommitMessage:
 
         return self.type.lower() == "merge"
 
-    def has_fix(self, config: Optional[Configuration] = None):
+    def has_fix(self):
         """Returns whether the commit message is a (bug) fix"""
 
         # 3. The type fix MUST be used when a commit represents a bug fix for your application.
