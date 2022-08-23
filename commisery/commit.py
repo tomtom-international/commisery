@@ -86,7 +86,7 @@ class Footer:
 
         self._token = token
 
-    def __repr__(self):
+    def __str__(self):
         if self.value[0].startswith("#"):
             return f"{self.token} {os.linesep.join(self.value)}"
 
@@ -129,7 +129,7 @@ class CommitMessage:
         """To maintain backwards compatibility"""
         return self.subject
 
-    def __repr__(self):
+    def __str__(self):
         """Full commit message representation"""
         message = self.subject
 
