@@ -24,7 +24,7 @@ CONVENTIONAL_COMMIT_REGEX = re.compile(
     r"""
         # 1. Commits MUST be prefixed with a type, which consists of a noun, feat, fix, etc.,
         # followed by the OPTIONAL scope, OPTIONAL !, and REQUIRED terminal colon and space.
-        (?P<type>\w+)?
+        (?P<type>[\w]+)?
         # 4. A scope MAY be provided after a type. A scope MUST consist of a noun describing a
         # section of the codebase surrounded by parenthesis, e.g., fix(parser):
         (?: \( (?P<scope> [^()]* ) \) )?
@@ -97,12 +97,12 @@ class Footer:
 class CommitMessage:
     """Conventional Commit Message"""
 
-    body: Optional[Sequence[str]] = field(default_factory=list)
-    breaking_change: str = None
-    description: str = None
-    footers: Optional[Sequence[Footer]] = field(default_factory=list)
-    hexsha: str = None
-    separator: str = None
+    body: Sequence[str] = field(default_factory=list)
+    breaking_change: Optional[str] = None
+    description: Optional[str] = None
+    footers: Sequence[Footer] = field(default_factory=list)
+    hexsha: Optional[str] = None
+    separator: Optional[str] = None
     scope: Optional[str] = None
     type: Optional[str] = None
 
@@ -110,7 +110,7 @@ class CommitMessage:
     def subject(self):
         """Composes the subject line from the provided elements"""
 
-        subject = f"{self.type}"
+        subject = f"{self.type}" if self.type else ""
 
         if self.scope:
             subject += f"({self.scope})"
@@ -190,20 +190,20 @@ class CommitMessage:
     def is_merge(self):
         """Return whether the commit message is a merge commit"""
 
-        return self.type.lower() == "merge"
+        return self.type is not None and self.type.lower() == "merge"
 
     def has_fix(self):
         """Returns whether the commit message is a (bug) fix"""
 
         # 3. The type fix MUST be used when a commit represents a bug fix for your application.
-        return self.type.lower() == "fix"
+        return self.type is not None and self.type.lower() == "fix"
 
     def has_new_feature(self):
         """Returns whether the commit contains a new feature"""
 
         # 2. The type feat MUST be used when a commit adds a new feature to your application
         # or library.
-        return self.type.lower() == "feat"
+        return self.type is not None and self.type.lower() == "feat"
 
     def has_breaking_change(self):
         """Returns whether the commit contains a breaking change"""
