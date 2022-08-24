@@ -482,6 +482,7 @@ def validate_commit_message_rule(
             get_default_rules()[rule].get("obj")(message, config)
     except logging.Error as err:
         err.message = f"[{rule}] {err.message}"
+        err.file_path = message.hexsha
         err.report()
         return 1
 
