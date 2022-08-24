@@ -24,7 +24,7 @@ CONVENTIONAL_COMMIT_REGEX = re.compile(
     r"""
         # 1. Commits MUST be prefixed with a type, which consists of a noun, feat, fix, etc.,
         # followed by the OPTIONAL scope, OPTIONAL !, and REQUIRED terminal colon and space.
-        (?P<type>[\w]+)?
+        (?P<type>\w+)?
         # 4. A scope MAY be provided after a type. A scope MUST consist of a noun describing a
         # section of the codebase surrounded by parenthesis, e.g., fix(parser):
         (?: \( (?P<scope> [^()]* ) \) )?
@@ -110,7 +110,7 @@ class CommitMessage:
     def subject(self):
         """Composes the subject line from the provided elements"""
 
-        subject = f"{self.type}" if self.type else ""
+        subject = self.type or ""
 
         if self.scope:
             subject += f"({self.scope})"
