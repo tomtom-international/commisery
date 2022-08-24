@@ -122,7 +122,7 @@ def overview(ctx):
 @click.option("-d", "--description", help="Commit description")
 @click.option("-b", "--breaking-change", is_flag=True, help="This is a breaking change")
 @click.pass_context
-def commit(ctx, type, scope, description, breaking_change):  # pylint: disable=W0622
+def commit(ctx, type, scope, description, breaking_change):
     """Creates a conventional commit"""
     ctx.ensure_object(dict)
     config = ctx.obj["CONFIG"]
@@ -249,10 +249,10 @@ def check(ctx, target):
             )
             > 1
         ):
-            log.debug(f"Handling as range: {target_str}")  # pylint: disable= W1203
+            log.debug(f"Handling as range: %s", target_str)
             result = check_commit_rev_range(target, config=config)
         else:
-            log.debug(f"Handling as commitish: {target_str}")  # pylint: disable= W1203
+            log.debug(f"Handling as commitish: %s", target_str)
             result = check_commit(target_str, config=config)
     except subprocess.CalledProcessError:
         result = 1
@@ -262,4 +262,4 @@ def check(ctx, target):
 
 
 if __name__ == "__main__":
-    sys.exit(main(None, None, None, None, None))
+    sys.exit(main())
