@@ -246,3 +246,16 @@ Merged-by: Hopic 0.10.2.dev7+g840ca0c
 )
 def test_merge_commit(msg):
     assert CommitMessage.from_message(msg).is_merge()
+
+@pytest.mark.parametrize(
+    "msg, expectation",
+    (
+        ("feat: execute inside docker container if requested", "feat"),
+        ("feat execute inside docker container if requested", "feat"),
+        ("[feat]: execute inside docker container if requested", None),
+        ("[feat] execute inside docker container if requested", None),
+        ("[NAV-1234] execute inside docker container if requested", None),
+    ),
+)
+def test_commit_types(msg, expectation):
+    assert CommitMessage.from_message(msg).type == expectation
