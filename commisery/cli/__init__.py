@@ -180,7 +180,7 @@ def commit(ctx, type, scope, description, breaking_change):
         answers["breaking_change"] = "!" if answers.get("breaking_change", "No") == "Yes" else ""
 
         if answers.get("body"):
-            answers["body"] = (os.linesep + answers.get("body")).split(os.linesep)
+            answers["body"] = ("\n" + answers.get("body")).splitlines()
 
         return CommitMessage(**answers, separator=": ")
 
