@@ -175,10 +175,12 @@ def commit(ctx, type, scope, description, breaking_change):
 
         answers = inquirer.prompt(questions)
 
-        answers["scope"] = answers.get("scope") if answers.get("scope") else None
+        answers["scope"] = answers.get("scope") if answers.get("scope", None) else None
         answers["type"] = answers.get("type").split(":")[0]
-        answers["breaking_change"] = "!" if answers.get("breaking_change") else ""
-        answers["body"] = (os.linesep + answers.get("body")).split(os.linesep)
+        answers["breaking_change"] = "!" if answers.get("breaking_change", "No") == "Yes" else ""
+
+        if answers.get("body"):
+            answers["body"] = ("\n" + answers.get("body")).splitlines()
 
         return CommitMessage(**answers, separator=": ")
 
@@ -204,6 +206,7 @@ Is this correct?""",
         ).get("confirmation")
 
     print(os.linesep)
+
     if validate_commit_message(commit_message, config) == 0:
         repo = Repo(os.getcwd(), search_parent_directories=True)
         repo.index.commit(message=str(commit_message))
@@ -246,10 +249,10 @@ def check(ctx, target):
             )
             > 1
         ):
-            log.debug(f"Handling as range: {target_str}")
+            log.debug(f"Handling as range: %s", target_str)
             result = check_commit_rev_range(target, config=config)
         else:
-            log.debug(f"Handling as commitish: {target_str}")
+            log.debug(f"Handling as commitish: %s", target_str)
             result = check_commit(target_str, config=config)
     except subprocess.CalledProcessError:
         result = 1
