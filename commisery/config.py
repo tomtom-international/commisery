@@ -62,6 +62,7 @@ class Configuration:
     max_subject_length: int = 80
     _tags: Mapping = field(default_factory=lambda: DEFAULT_ACCEPTED_TAGS)
     rules: Mapping = field(default_factory=lambda: get_default_rules())
+    silent: bool = False
 
     def __post_init__(self):
         """Post initializer"""

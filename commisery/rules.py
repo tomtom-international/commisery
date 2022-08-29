@@ -506,9 +506,10 @@ def validate_commit_message_rule(
         if config.rules[rule].get("enabled"):
             get_default_rules()[rule].get("obj")(message, config)
     except logging.Error as err:
-        err.message = f"[{rule}] {err.message}"
-        err.file_path = message.hexsha
-        err.report()
+        if not config.silent:
+            err.message = f"[{rule}] {err.message}"
+            err.file_path = message.hexsha
+            err.report()
         return 1
 
     return 0

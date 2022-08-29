@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import logging
+import math
 import os
 import re
 import subprocess
@@ -22,7 +23,7 @@ import sys
 
 import click
 import click_log
-from git import Repo
+from git import Repo, GitCommandError, InvalidGitRepositoryError
 
 from commisery.checking import (
     check_commit,
@@ -32,7 +33,7 @@ from commisery.cli import inquirer
 from commisery.commit import CommitMessage
 from commisery.config import DEFAULT_ACCEPTED_TAGS, Configuration, get_default_rules
 from commisery.range import check_commit_rev_range
-
+from commisery.versioning import GitVersion
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -249,6 +250,118 @@ def check(ctx, target):
         log.error("Could not parse target revision spec %s", target_str)
 
     sys.exit(result)
+
+
+@main.command()
+@click.argument("target", default="")
+@click.pass_context
+def next_version(ctx, target):
+    """
+    Provides the next version based on Conventional Commit messages since the
+    last tag.
+    Accepts tags with prefix, (eg. "v0.1.2",) but returns _only_ the semantic
+    version after bumping (eg. "0.1.3").
+
+    TARGET can optionally be provided to override the "to"-revision.
+    If TARGET can be parsed as a file, its contents shall be interpreted as a
+    single commit.
+    In all other cases, TARGET can be used to exclude some commits from the
+    revision range since the last tag. For example, specifying "HEAD~" will
+    run the logic excluding the HEAD commit.\n
+    If not provided, TARGET will default to "HEAD".
+
+    \b
+    The list of commits this function will consider is identical to:
+        git rev-list ^LAST_TAG TARGET
+    where LAST_TAG is the latest topological tag in the current branch.
+
+    \b
+    Prints the version on a successful bump, otherwise:
+      - exits with 2 if the commits version is not bumped
+      - exits with 1 on any trouble (no version tag found, invalid input, etc.)
+    """
+    config = ctx.obj["CONFIG"]
+    valid_repo = False
+    try:
+        repo = Repo(search_parent_directories=True)
+        if repo.active_branch.is_valid():
+            valid_repo = True
+    except InvalidGitRepositoryError:
+        pass
+    except TypeError:
+        log.error("Could not resolve HEAD; is HEAD detached?")
+        ctx.exit(1)
+
+    if not valid_repo:
+        log.error(f"Current directory ({os.getcwd()}) is not in a (valid) Git repository")
+        ctx.exit(1)
+
+    # Repeatability caveat: the length of the describe abbrev is by
+    # default dependent on the amount of Git objects in a repo.
+    #   length = int((log2(git_objects) + 1) / 2)
+    # For the sake of repeatability, we choose a very large number.
+    _max_git_objects = 100e6
+    _git_abbrev_len = math.ceil(math.log2(_max_git_objects) / 2)
+    try:
+        version = GitVersion.from_description(
+            repo.git.describe(
+                tags=True,
+                long=True,
+                dirty=True,
+                always=True,
+                abbrev=_git_abbrev_len,
+            ),
+        )
+    except GitCommandError:
+        log.error("Error during `git describe`; ensure the branch's last tag is a SemVer")
+        ctx.exit(1)
+
+    current_version = version.to_version(format="semver")
+
+    if target and os.path.exists(target):
+        with open(target, "r") as file:
+            commits = (file.read(),)
+    elif version.exact or current_version is None:
+        # We're either on the latest tag or the current latest tag is not parseable
+        log.info("Nothing to bump")
+        ctx.exit(2)
+    elif target:
+        try:
+            commits = tuple(repo.iter_commits(rev=target))
+        except GitCommandError:
+            log.error(f"Provided target '{target}' is invalid")
+            ctx.exit(1)
+    else:
+        current_tag = repo.git.describe(tags=True, abbrev=0)
+        commits = tuple(repo.iter_commits(rev=(f"^{current_tag}", "HEAD")))
+
+    if len(tuple(commits)) == 0:
+        if target:
+            if os.path.exists(target):
+                log.error("The file '%s' is empty" % target)
+            else:
+                log.error("The revision range '%s' resulted in an empty commit list" % target)
+        else:
+            log.error("No commits found")
+        ctx.exit(1)
+
+    # We only want to get a list of correct conventional commits to consider; disable error output
+    config.silent = True
+
+    log.debug("Yielding " + str(commits))
+    def _check_commits(commits):
+        for commit in commits:
+            msg = CommitMessage.from_message(commit if isinstance(commit, str) else commit.message)
+            if validate_commit_message(msg, config) == 0:
+                yield msg
+
+    new_version = current_version.next_version_for_commits(_check_commits(commits))
+    if new_version > current_version:
+        print(new_version)
+        ctx.exit(0)
+
+    log.info(f"Not bumping from {current_version}")
+    ctx.exit(2)
 
 
 if __name__ == "__main__":
