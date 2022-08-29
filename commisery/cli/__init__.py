@@ -71,9 +71,7 @@ def main(ctx, config, tags, max_subject_length, disable):
     ctx.ensure_object(dict)
     config = Configuration.from_yaml(config)
     if tags:
-        config.tags = {
-            key: "No description available (provided by CLI)" for key in tags.split(",")
-        }
+        config.tags = {key: "No description available (provided by CLI)" for key in tags.split(",")}
 
     if max_subject_length:
         config.max_subject_length = max_subject_length
@@ -102,7 +100,7 @@ def overview(ctx):
     print("Commisery Validation rules")
     print("--------------------------")
     print(
-        "[\033[92mo\033[0m]: \033[90mrule is enabled\033[0m, [\033[91mx\033[0m]: \033[90mrule has been disabled\033[0m"
+        "[\033[92mo\033[0m]: \033[90mrule is enabled\033[0m, [\033[91mx\033[0m]: \033[90mrule has been disabled\033[0m"  # pylint: disable=line-too-long
     )
     print()
     for rule, value in config.rules.items():
@@ -115,7 +113,7 @@ def overview(ctx):
 @click.option(
     "-t",
     "--type",
-    type=click.Choice(DEFAULT_ACCEPTED_TAGS),
+    type=click.Choice(tuple(DEFAULT_ACCEPTED_TAGS.keys())),
     help="Conventional Commit type",
 )
 @click.option("-s", "--scope", help="Conventional commit scope")
@@ -131,9 +129,7 @@ def commit(ctx, type, scope, description, breaking_change):
         questions = []
 
         if not type:
-            tag_choices = [
-                f"{tag}: {description}" for tag, description in config.tags.items()
-            ]
+            tag_choices = [f"{tag}: {description}" for tag, description in config.tags.items()]
 
             questions.append(
                 inquirer.Choice(
@@ -145,15 +141,11 @@ def commit(ctx, type, scope, description, breaking_change):
             )
 
         if not scope:
-            questions.append(
-                inquirer.Input(name="scope", message="Specify the scope (Optional)")
-            )
+            questions.append(inquirer.Input(name="scope", message="Specify the scope (Optional)"))
 
         if not description:
             questions.append(
-                inquirer.Input(
-                    name="description", message="Specify the subject of the commit"
-                )
+                inquirer.Input(name="description", message="Specify the subject of the commit")
             )
 
         questions.append(
@@ -241,9 +233,7 @@ def check(ctx, target):
             not re.match(r"^[0-9a-fA-F]{40}$", target_str)
             and not os.path.exists(target_str)
             and len(
-                subprocess.check_output(
-                    ("git", "rev-parse") + target, stderr=subprocess.DEVNULL
-                )
+                subprocess.check_output(("git", "rev-parse") + target, stderr=subprocess.DEVNULL)
                 .decode(encoding="UTF-8")
                 .splitlines()
             )
