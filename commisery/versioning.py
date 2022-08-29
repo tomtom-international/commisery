@@ -1,4 +1,4 @@
-# Copyright (c) 2018 - 2021 TomTom N.V. (https://tomtom.com)
+# Copyright (c) 2018 - 2022 TomTom N.V. (https://tomtom.com)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 # limitations under the License.
 
 from datetime import datetime
+from io import open
+
 import logging
 import os
 from pathlib import PurePath
@@ -44,19 +46,7 @@ else:
         Protocol,
     )
 
-from io import (
-    open,
-)
-
-from .errors import VersioningError
-from .types import (
-    Stringable,
-    TBD,
-)
-
-
 __all__ = (
-    'CarusoVer',
     'GitVersion',
     'SemVer',
     "Version",
@@ -64,7 +54,12 @@ __all__ = (
     'replace_version',
 )
 
+Stringable = Any
+TBD = Any
 log = logging.getLogger(__name__)
+
+
+class VersioningError(RuntimeError): ...
 
 
 class _IdentifierList(tuple):
@@ -333,229 +328,19 @@ class SemVer(Version):
         return rhs <= self
 
 
-class CarusoVer(Version):
-    """Caruso-specific versioning policy, overlaps with semantic versioning in syntax but definitely not compatible."""
-    __slots__ = ('major', 'minor', 'patch', 'prerelease', 'increment', 'fix')
-    default_tag_name = "{version.major}.{version.minor}.{version.patch}{version.prerelease_separator}{version.prerelease}+PI{version.increment}.{version.fix}"
-
-    def __init__(self, major: int, minor: int, patch: int, prerelease: Tuple[str, ...], increment: int, fix: int):
-        self.major      = major
-        self.minor      = minor
-        self.patch      = patch
-        self.prerelease = prerelease
-        self.increment  = increment
-        self.fix        = fix
-
-    def __setattr__(self, name, value):
-        if name in {'major', 'minor', 'patch', 'increment', 'fix'}:
-            return super().__setattr__(name, int(value))
-        elif name in {'prerelease'}:
-            return super().__setattr__(name, _IdentifierList(value))
-
-    def __iter__(self) -> Iterator[TBD]:
-        return iter(getattr(self, attr) for attr in self.__class__.__slots__)
-
-    def __repr__(self) -> str:
-        return '%s(major=%r, minor=%r, patch=%r, prerelease=%r, increment=%r, fix=%r)' % ((self.__class__.__name__,) + tuple(self))
-
-    @property
-    def prerelease_separator(self) -> str:
-        return "-" if self.prerelease else ""
-
-    def __str__(self) -> str:
-        ver = '.'.join(str(x) for x in tuple(self)[:3])
-        ver += f"{self.prerelease_separator}{self.prerelease}"
-        ver += f"+PI{self.increment}.{self.fix}"
-        return ver
-
-    version_re = re.compile(
-        r'^(?:version=)?'
-      + r'(?P<major>0|[1-9][0-9]*)'                                  # noqa: E131
-      + r'\.(?P<minor>0|[1-9][0-9]*)'
-      + r'\.(?P<patch>0|[1-9][0-9]*)'
-      + r'(?:-(?P<prerelease>[-0-9a-zA-Z]+(?:\.[-0-9a-zA-Z]+)*))?'
-      + r'\+PI(?P<increment>0|[1-9][0-9]*)\.(?P<fix>0|[1-9][0-9]*)'
-      + r'\s*$'
-    )
-
-    @classmethod
-    def parse(cls, s: str) -> Optional["CarusoVer"]:
-        m = cls.version_re.match(s)
-        if not m:
-            return None
-
-        major = int(m.group("major"))
-        minor = int(m.group("minor"))
-        patch = int(m.group("patch"))
-        increment = int(m.group("increment"))
-        fix = int(m.group("fix"))
-
-        if m.group("prerelease") is not None:
-            prerelease = tuple(m.group("prerelease").split("."))
-        else:
-            prerelease = ()
-
-        return cls(major, minor, patch, prerelease, increment, fix)
-
-    def next_fix(self) -> "CarusoVer":
-        if self.prerelease:
-            # Just strip pre-release
-            return CarusoVer(self.major, self.minor, self.patch, (), self.increment, self.fix)
-
-        return CarusoVer(self.major, self.minor, self.patch, (), self.increment, self.fix + 1)
-
-    _number_re = re.compile(r'^(?:[1-9][0-9]*|0)$')
-    def next_prerelease(self, seed: Union[None, str, Iterable[Stringable]] = None) -> "CarusoVer":  # noqa: E301 'expected 1 blank line'
-        # Special case for if we don't have a prerelease: bump patch and seed prerelease
-        if not self.prerelease:
-            if isinstance(seed, str):
-                seed = (seed,)
-            elif not seed:
-                seed = ('1',)
-            seed = tuple(str(i) for i in seed)
-
-            return CarusoVer(self.major, self.minor, self.patch, seed, self.increment, self.fix + 1)
-
-        # Find least significant numeric identifier to increment
-        increment_idx = None
-        for idx, elem in reversed(list(enumerate(self.prerelease))):
-            if self._number_re.match(elem):
-                increment_idx = idx
-                break
-        if increment_idx is None:
-            return CarusoVer(self.major, self.minor, self.patch, self.prerelease + ('1',), self.increment, self.fix)
-
-        # Increment only the specified identifier
-        prerelease = (
-            self.prerelease[:increment_idx]
-          + (str(int(self.prerelease[increment_idx]) + 1),)  # noqa: E131
-          + self.prerelease[increment_idx + 1:]
-        )
-        return CarusoVer(self.major, self.minor, self.patch, prerelease, self.increment, self.fix)
-
-    def next_version(self, bump="prerelease", **kwargs: TBD) -> "CarusoVer":
-        if bump == 'prerelease' and 'prerelease_seed' in kwargs:
-            kwargs = kwargs.copy()
-            kwargs['seed'] = kwargs.pop('prerelease_seed')
-        return {  # type: ignore[operator]
-            'prerelease': self.next_prerelease,
-            'fix'       : self.next_fix,
-        }[bump](**kwargs)
-
-    def next_version_for_commits(self, commits: Iterable[TBD]) -> NoReturn:
-        raise NotImplementedError
-
-    def without_meta(self) -> "CarusoVer":
-        return self
-
-    def __eq__(self, rhs: object) -> bool:
-        if not isinstance(rhs, self.__class__):
-            return NotImplemented
-        return tuple(self) == tuple(rhs)
-
-    def __ne__(self, rhs: object) -> bool:
-        if not isinstance(rhs, self.__class__):
-            return NotImplemented
-        return tuple(self) != tuple(rhs)
-
-    def __lt__(self, rhs: Version) -> bool:
-        if not isinstance(rhs, self.__class__):
-            return NotImplemented
-        lhs_t = tuple(self)[:3] + tuple(self)[4:6]
-        rhs_t = tuple(rhs)[:3] + tuple(rhs)[4:6]
-        if lhs_t < rhs_t:
-            return True
-        if lhs_t > rhs_t:
-            return False
-
-        if self.prerelease and not rhs.prerelease:
-            # Having a prerelease sorts before not having one
-            return True
-        elif not self.prerelease:
-            return False
-
-        assert self.prerelease and rhs.prerelease
-
-        a: Union[str, int]
-        b: Union[str, int]
-        for a, b in zip(self.prerelease, rhs.prerelease):
-            try:
-                a = int(a)
-            except ValueError:
-                pass
-            try:
-                b = int(b)
-            except ValueError:
-                pass
-            if isinstance(a, int) and not isinstance(b, int):
-                # Numeric identifiers sort before non-numeric ones
-                return True
-            elif isinstance(a, int) != isinstance(b, int):
-                return False
-            if a < b:  # type: ignore[operator]
-                return True
-            elif b < a:  # type: ignore[operator]
-                return False
-
-        return len(self.prerelease) < len(rhs.prerelease)
-
-    def __le__(self, rhs: Version) -> bool:
-        return self < rhs or self == rhs
-
-    def __gt__(self, rhs: Version) -> bool:
-        return rhs < self
-
-    def __ge__(self, rhs: Version) -> bool:
-        return rhs <= self
-
-
-_rejected_hotfix_prefixes = frozenset((
-    "a",
-    "b",
-    "c",
-    "rc",
-    "alpha",
-    "beta",
-    "pre",
-    "preview",
-    "post",
-    "rev",
-    "r",
-    "dev",
-))
-
-
-def hotfix_id(pat: Union[str, Pattern], branch_name: Optional[str]) -> Tuple[str, ...]:
-    """
-    Extracts a hotfix ID from a hotfix branch name using the given regular expression.
-    """
-    if branch_name is None:
-        return ()
-
-    if not isinstance(pat, Pattern):
-        pat = re.compile(pat)
-
-    idx = pat.groupindex.get("id", pat.groupindex.get("ID", 1))
-
-    m = pat.match(branch_name)
-    if not m:
-        return ()
-
-    hotfix = m.group(idx)
-
-    if not re.match(r"^[a-zA-Z](?:[-.a-zA-Z0-9]*[a-zA-Z0-9])?$", hotfix):
-        raise VersioningError(f"Hotfix ID '{hotfix}' is not a valid identifier")
-    prefix = re.split(r"[-.]", hotfix)[0]
-    if re.sub(r"[0-9]+$", "", prefix) in _rejected_hotfix_prefixes:
-        raise VersioningError(f"Hotfix ID '{hotfix}' starts with reserved prefix {prefix}")
-
-    return _IdentifierList(hotfix.split("."))
-
-
 _fmts: Mapping[str, Type[Version]] = {
     'semver': SemVer,
-    'carver': CarusoVer,
 }
+
+
+def add_version_type(name: str, version_type: Type[Version]):
+    """
+    Allow for adding a custom version type, inheriting from the Version class.
+    Overwriting existing types is not allowed and will therefore raise a ValueError.
+    """
+    if name in _fmts.keys():
+        raise ValueError(f"Format with name '{name}' already exists.")
+    _fmts[name] = version_type
 
 
 def read_version(fname, format="semver", encoding: Optional[str] = None) -> Optional[Version]:
@@ -570,7 +355,7 @@ def read_version(fname, format="semver", encoding: Optional[str] = None) -> Opti
     return None
 
 
-# NOTE: while this is a regular language, it's one who's captures cannot be described if put in a single regex
+# NOTE: while this is a regular language, it's one whose captures cannot be described if put in a single regex
 _git_describe_commit_re: Final = re.compile(r"^(?:(.*)-g)?([0-9a-f]+)$")
 _git_describe_distance_re: Final = re.compile(r"^(.*)-([0-9]+)$")
 
