@@ -14,7 +14,7 @@
 
 from textwrap import dedent
 import pytest
-from commisery.commit import CommitMessage
+from commisery.commit import parse_commit_message
 from commisery.config import Configuration
 from commisery import rules
 
@@ -24,10 +24,10 @@ import llvm_diagnostics as logger
 def __validate_rule(rule, message, exception):
     if exception:
         with pytest.raises(logger.Error) as exc_info:
-            rule(CommitMessage.from_message(message), Configuration())
+            rule(parse_commit_message(message), Configuration())
         assert exc_info.value.message.startswith(rule.__doc__)
     else:
-        rule(CommitMessage.from_message(message), Configuration())
+        rule(parse_commit_message(message), Configuration())
 
 
 @pytest.mark.parametrize(
@@ -466,7 +466,7 @@ def test_C020_git_trailer_contains_whitespace(message, exception):
                 Acked-by: Anton Indrawan <Anton.Indrawan@tomtom.com>
             """
             ),
-            False,
+            True,
         ),
         (
             dedent(

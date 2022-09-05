@@ -25,16 +25,18 @@ log = logging.getLogger(__name__)
 def test_cli_range_of_correct_long_commits(commisery_cli):
     long_commit_messages = tuple(
         dedent(
-            f"""chore: write a long message for this test
+            f"""
+            chore: write a long message for this test
 
-This should be a proper commit body. Nice and long, too.
-Other test cases use more terse commit messages, this one tests a long one.
-It also references UTF-8 for no apparent reason, it doesn't comply with PEP-440,
-is represented by a SHA-1 commit hash and was written on a VT-52 terminal..
+            This should be a proper commit body. Nice and long, too.
+            Other test cases use more terse commit messages, this one tests a long one.
+            It also references UTF-8 for no apparent reason, it doesn't comply with PEP-440,
+            is represented by a SHA-1 commit hash and was written on a VT-52 terminal..
 
-Okay, maybe not that last one, but the rest is mostly accurate.
+            Okay, maybe not that last one, but the rest is mostly accurate.
 
-Implements: TICKET-{x}"""
+            Implements: TICKET-{x}
+            """
         )
         for x in range(0, 10)
     )

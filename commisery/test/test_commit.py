@@ -1,4 +1,4 @@
-# Copyright (c) 2019 - 2019 TomTom N.V. (https://tomtom.com)
+# Copyright (c) 2019 - 2022 TomTom N.V. (https://tomtom.com)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..commit import *
-
+from commisery.checking import validate_commit_message
+from commisery.config import Configuration
 import pytest
+from ..commit import parse_commit_message, parse_commit_message
 
 
 def test_basic_message_strip_and_splitup():
@@ -27,7 +28,8 @@ def test_basic_message_strip_and_splitup():
       * paragraph splitting
       * body extraction
     """
-    m = CommitMessage('''\
+    message = parse_commit_message(
+        """\
 
 # test stripping of comments and preceding empty lines
 
@@ -47,146 +49,111 @@ in the output.
 
 # test stripping of comments and succeeding empty lines
 
-''')
-    assert m.subject == '''improvement(config): display config error messages without backtrace'''
-    assert m.lines[0] == m.subject
+"""
+    )
+    assert (
+        message.subject
+        == """improvement(config): display config error messages without backtrace"""
+    )
 
-    assert m.paragraphs[0] == '''In order to prevent users from thinking they're seeing a bug in Hopic.'''
-    assert m.paragraphs[0] == m.body.splitlines()[0]
-    assert m.body.splitlines()[0] == m.message.splitlines()[2]
+    assert (
+        message.lines[2]
+        == """In order to prevent users from thinking they're seeing a bug in Hopic."""
+    )
 
-    assert m.paragraphs[1].splitlines(keepends=True)[0] == '''This changes the type of ConfigurationError such that Click will display\n'''
-
-    assert m.paragraphs[-1].splitlines(keepends=True)[-1] == '''is more to the point.'''
-    assert m.paragraphs[-1].splitlines()[-1] == m.body.splitlines()[-1]
-    assert m.body.splitlines()[-1] == m.message.splitlines()[-1]
-
-def test_commit_has_hexsha():
-    commit = CommitMessage('fix: something', '0000000000000000000000000000000000000000')
-    assert isinstance(commit.hexsha, str)
-
-    conventional_commit = ConventionalCommit('fix: something', '0000000000000000000000000000000000000000')
-    assert isinstance(conventional_commit.hexsha, str)
-
-    reparsed_conventional_commit = CommitMessage(commit)
-    assert isinstance(reparsed_conventional_commit.hexsha, str)
-
-def test_conventional_missing_separator():
-    with pytest.raises(RuntimeError, match=r'(lack|miss).*separator'):
-        ConventionalCommit('fix display config error messages without backtrace')
-
-    with pytest.raises(RuntimeError, match=r'(lack|miss).*separator'):
-        ConventionalCommit('fix:display config error messages without backtrace')
-
-def test_conventional_wrong_case_type_tag():
-    with pytest.raises(RuntimeError, match=r'type.*tag.*upper.*case'):
-        ConventionalCommit('Fix: display config error messages without backtrace')
 
 def test_conventional_scoped_improvement():
-    m = ConventionalCommit('improvement(config): display config error messages without backtrace')
-    assert m.type_tag == 'improvement'
-    assert m.scope == 'config'
-    assert m.description == 'display config error messages without backtrace'
-    assert not m.has_breaking_change()
-    assert not m.has_new_feature()
-    assert not m.has_fix()
+    message = parse_commit_message("improvement(config): display config error messages without backtrace")
+
+    assert message.type == "improvement"
+    assert message.scope == "config"
+    assert message.description == "display config error messages without backtrace"
+    assert not message.has_breaking_change()
+    assert not message.has_new_feature()
+    assert not message.has_fix()
+
 
 def test_conventional_scope_with_space():
-    ConventionalCommit('docs(git tips): improve documentation on amending')
+    parse_commit_message("docs(git tips): improve documentation on amending")
 
-def test_conventional_badly_scoped():
-    with pytest.raises(RuntimeError, match=r'scope.*empty'):
-        ConventionalCommit('fix(): display config error messages without backtrace')
-
-    with pytest.raises(RuntimeError, match=r'scope.*whitespace'):
-        ConventionalCommit('fix( config ): display config error messages without backtrace')
 
 def test_conventional_fix():
-    m = ConventionalCommit('fix: use the common ancestor of the source and target commit for autosquash')
-    assert m.type_tag == 'fix'
-    assert m.scope is None
-    assert not m.has_breaking_change()
-    assert not m.has_new_feature()
-    assert m.has_fix()
+    message = parse_commit_message("fix: use the common ancestor of the source and target commit for autosquash")
+    assert message.type == "fix"
+    assert message.scope is None
+    assert not message.has_breaking_change()
+    assert not message.has_new_feature()
+    assert message.has_fix()
+
 
 def test_conventional_new_feature():
-    m = ConventionalCommit('''feat: make execution possible with 'hopic' as command''')
-    assert m.type_tag == 'feat'
-    assert m.scope is None
-    assert not m.has_breaking_change()
-    assert m.has_new_feature()
-    assert not m.has_fix()
+    message = parse_commit_message("""feat: make execution possible with 'hopic' as command""")
+    assert message.type == "feat"
+    assert message.scope is None
+    assert not message.has_breaking_change()
+    assert message.has_new_feature()
+    assert not message.has_fix()
+
 
 def test_conventional_break():
-    m = ConventionalCommit('''\
+    message = parse_commit_message(
+        """\
 chore: cleanup old cfg.yml default config file name
 
 BREAKING-CHANGE: "${WORKSPACE}/cfg.yml" is no longer the default location
-of the config file. Instead only "${WORKSPACE}/hopic-ci-config.yaml" is
-looked at.
-''')
-    assert m.type_tag == 'chore'
-    assert m.scope is None
-    assert m.has_breaking_change()
-    assert not m.has_new_feature()
-    assert not m.has_fix()
+  of the config file. Instead only "${WORKSPACE}/hopic-ci-config.yaml" is
+  looked at.
+"""
+    )
+    assert message.type == "chore"
+    assert message.scope is None
+    assert message.has_breaking_change()
+    assert not message.has_new_feature()
+    assert not message.has_fix()
 
-    footer, = m.footers
-    assert footer.token == 'BREAKING CHANGE'
-    assert 'default location' in footer.value
+    assert "BREAKING CHANGE" in [footer.token for footer in message.footers]
+
 
 def test_conventional_subject_break():
-    m = ConventionalCommit('''chore!: delete deprecated 'ci-driver' command''')
-    assert m.type_tag == 'chore'
-    assert m.scope is None
-    assert m.has_breaking_change()
-    assert not m.has_new_feature()
-    assert not m.has_fix()
+    message = parse_commit_message("""chore!: delete deprecated 'ci-driver' command""")
+    assert message.type == "chore"
+    assert message.scope is None
+    assert message.has_breaking_change()
+    assert not message.has_new_feature()
+    assert not message.has_fix()
+
 
 def test_conventional_subject_breaking_fix():
-    m = ConventionalCommit('''fix!: take parameter as unsigned instead of signed int''')
-    assert m.type_tag == 'fix'
-    assert m.scope is None
-    assert m.has_breaking_change()
-    assert not m.has_new_feature()
-    assert m.has_fix()
+    message = parse_commit_message("""fix!: take parameter as unsigned instead of signed int""")
+    assert message.type == "fix"
+    assert message.scope is None
+    assert message.has_breaking_change()
+    assert not message.has_new_feature()
+    assert message.has_fix()
 
-def test_conventional_badly_marked_as_breaking():
-    with pytest.raises(RuntimeError, match=r'breaking.*indicator'):
-        ConventionalCommit('fix !: display config error messages without backtrace')
-
-    with pytest.raises(RuntimeError, match=r'breaking.*indicator'):
-        ConventionalCommit('fix! : display config error messages without backtrace')
-
-    with pytest.raises(RuntimeError, match=r'breaking.*indicator'):
-        ConventionalCommit('fix ! : display config error messages without backtrace')
 
 def test_conventional_subject_breaking_new_feature():
-    m = ConventionalCommit('''feat!: support multiple non-global current working directories''')
-    assert m.type_tag == 'feat'
-    assert m.scope is None
-    assert m.has_breaking_change()
-    assert m.has_new_feature()
-    assert not m.has_fix()
+    message = parse_commit_message("feat!: support multiple non-global current working directories")
+    assert message.type == "feat"
+    assert message.scope is None
+    assert message.has_breaking_change()
+    assert message.has_new_feature()
+    assert not message.has_fix()
+
 
 def test_conventional_fixup_fix():
-    m = ConventionalCommit('fixup! fix: only restore mtime for regular files and symlinks')
-    assert m.type_tag == 'fix'
-    assert m.scope is None
-    assert m.description == 'only restore mtime for regular files and symlinks'
-    assert not m.has_breaking_change()
-    assert not m.has_new_feature()
-    assert m.has_fix()
-
-
-def test_multiple_fixups():
-    """Permit multiple stacked fixup! and squash! prefixes"""
-    m = CommitMessage('fixup! squash! fixup! something')
-    assert m.autosquashed_subject == 'something'
+    message = parse_commit_message("fixup! fix: only restore mtime for regular files and symlinks")
+    assert message.type == "fix"
+    assert message.scope is None
+    assert message.description == "only restore mtime for regular files and symlinks"
+    assert not message.has_breaking_change()
+    assert not message.has_new_feature()
+    assert message.has_fix()
 
 
 def test_basic_footers():
-    m = CommitMessage('''\
+    message = parse_commit_message(
+        """\
 Merge #63: something
 
 Bla bla
@@ -198,46 +165,64 @@ Implements: PIPE-123 through the obliviator
 Acked-by: Alice <alice@example.com>
 Merged-by: Hopic 1.21.2
 Acked-by: Bob <bob@example.com>
-''')
-    with pytest.raises(KeyError):
-        # git-trailer format for footers doesn't permit spaces in the token name
-        _ = m.footers['BREAKING CHANGE']
+""")
 
-    assert tuple(tuple(footer) for footer in m.footers) == (
-            ('Addresses' , '#42 by working on finding the question'),
-            ('Implements', 'PIPE-123 through the obliviator'),
-            ('Acked-by'  , 'Alice <alice@example.com>'),
-            ('Merged-by' , 'Hopic 1.21.2'),
-            ('Acked-by'  , 'Bob <bob@example.com>'),
-        )
+    assert tuple(tuple(footer) for footer in message.footers) == (
+        ("BREAKING CHANGE", ("something changed in an unpredicted way")),
+        ("Addresses", ("#42 by working on finding the question")),
+        ("Implements", ("PIPE-123 through the obliviator")),
+        ("Acked-by", ("Alice <alice@example.com>")),
+        ("Merged-by", ("Hopic 1.21.2")),
+        ("Acked-by", ("Bob <bob@example.com>")),
+    )
 
 
 def test_conventional_footers():
-    m = ConventionalCommit('''\
+    message = parse_commit_message(
+        """\
 Merge #63: improvement(groovy): retrieve execution graph in a single 'getinfo' call
 
 This should reduce the amount of Jenkins master/slave interactions and
 their associated Groovy script engine "context switches" (state
 serialization and restoration). As a result performance should increase.
 
-Addresses #279 by adding a test framework.
-
+Addresses #167 by updating testing framework dependencies
+ and validating behavior
 Acked-by: Anton Indrawan <Anton.Indrawan@tomtom.com>
 Acked-by: Joost Muller <Joost.Muller@tomtom.com>
 Acked-by: Martijn Leijssen <Martijn.Leijssen@tomtom.com>
 Acked-by: Rene Kempen <Rene.Kempen@tomtom.com>
 Merged-by: Hopic 0.10.2.dev7+g840ca0c
-''')
-    assert m.type_tag == 'improvement'
-    assert m.scope == 'groovy'
+""")
+    assert message.type == "improvement"
+    assert message.scope == "groovy"
 
-    assert tuple(tuple(footer) for footer in m.footers) == (
-            ('Addresses', '#279 by adding a test framework.'),
+    # NOTE: Unfortunately we cannot make a correct judgement for the
+    #       rejected git-trailers, for now we will ignore them and
+    #       they will be considered to be part of the body of the
+    #       commit message.
+    assert tuple(tuple(footer) for footer in message.footers) == (
+        (
+            "Addresses",
+            "#167 by updating testing framework dependencies\n and validating behavior",
+        ),
+        ("Acked-by", ("Anton Indrawan <Anton.Indrawan@tomtom.com>")),
+        ("Acked-by", ("Joost Muller <Joost.Muller@tomtom.com>")),
+        ("Acked-by", ("Martijn Leijssen <Martijn.Leijssen@tomtom.com>")),
+        ("Acked-by", ("Rene Kempen <Rene.Kempen@tomtom.com>")),
+        ("Merged-by", ("Hopic 0.10.2.dev7+g840ca0c")),
+    )
 
-            ('Acked-by' , 'Anton Indrawan <Anton.Indrawan@tomtom.com>'),
-            ('Acked-by' , 'Joost Muller <Joost.Muller@tomtom.com>'),
-            ('Acked-by' , 'Martijn Leijssen <Martijn.Leijssen@tomtom.com>'),
-            ('Acked-by' , 'Rene Kempen <Rene.Kempen@tomtom.com>'),
 
-            ('Merged-by', 'Hopic 0.10.2.dev7+g840ca0c'),
-        )
+@pytest.mark.parametrize(
+    "msg, expectation",
+    (
+        ("feat: execute inside docker container if requested", "feat"),
+        ("feat execute inside docker container if requested", "feat"),
+        ("[feat]: execute inside docker container if requested", None),
+        ("[feat] execute inside docker container if requested", None),
+        ("[NAV-1234] execute inside docker container if requested", None),
+    ),
+)
+def test_commit_types(msg, expectation):
+    assert parse_commit_message(msg, strict=False).type == expectation

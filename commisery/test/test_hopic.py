@@ -23,7 +23,7 @@ from textwrap import dedent
 
 import pytest
 
-from commisery.commit import parse_commit_message
+from commisery.commit import parse_commit_message, ParsingError
 
 try:
     # Python >= 3.8
@@ -206,7 +206,7 @@ def test_commisery_template_range(capfd, monkeypatch, ticket):
 def test_parse_commit_message(message, policy, strict):
     try:
         assert parse_commit_message(message=message, policy=policy, strict=strict)
-    except RuntimeError:
+    except ParsingError:
         assert strict
 
 
@@ -229,7 +229,10 @@ def test_parse_commit_message(message, policy, strict):
     ),
 )
 def test_has_breaking_change(message, breaking):
-    assert parse_commit_message(message).has_breaking_change() == breaking
+    assert (
+        parse_commit_message(message, policy="conventional-commits").has_breaking_change()
+        == breaking
+    )
 
 
 @pytest.mark.parametrize(
@@ -241,7 +244,8 @@ def test_has_breaking_change(message, breaking):
     ),
 )
 def test_has_new_feature(message, feature):
-    assert parse_commit_message(message).has_new_feature() == feature
+    msg = parse_commit_message(message, policy="conventional-commits")
+    assert parse_commit_message(message, policy="conventional-commits").has_new_feature() == feature
 
 
 @pytest.mark.parametrize(
@@ -253,8 +257,9 @@ def test_has_new_feature(message, feature):
     ),
 )
 def test_has_fix(message, fix):
-    assert parse_commit_message(message).has_fix() == fix
+    assert parse_commit_message(message, policy="conventional-commits").has_fix() == fix
 
 
 def test_hexsha():
-    assert parse_commit_message("placeholder description").hexsha is None
+    msg = parse_commit_message("placeholder description", policy="conventional-commits")
+    assert msg.hexsha is None

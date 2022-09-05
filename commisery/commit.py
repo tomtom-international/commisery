@@ -1,4 +1,4 @@
-# Copyright (c) 2018 - 2019 TomTom N.V. (https://tomtom.com)
+# Copyright (c) 2018 - 2022 TomTom N.V. (https://tomtom.com)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,19 +16,27 @@ from collections import namedtuple
 import re
 import typing
 
+import git
 
-_Footer = namedtuple('Footer', ('token', 'value'))
+BREAKING_CHANGE_TOKEN = "BREAKING CHANGE"
+
+_Footer = namedtuple("_Footer", ("token", "value"))
+
+
+class ParsingError(RuntimeError):
+    ...
 
 
 class CommitMessage(object):
-    line_separator = '\n'
-    paragraph_separator = '\n\n'
-    autosquash_re = re.compile(r'^(?:(?:fixup|squash)!\s+)+')
-    merge_re = re.compile(r'^Merge.*?:[ \t]*')
+    line_separator = "\n"
+    paragraph_separator = "\n\n"
+    autosquash_re = re.compile(r"^(?:(?:fixup|squash)!\s+)+")
+    merge_re = re.compile(r"^Merge.*?:[ \t]*")
 
     # Variation of conventional commits footer that more closely matches 'git trailers'.
     # In particular it doesn't permit 'BREAKING CHANGE' (with a space, instead of '-') as a footer's token.
-    footer_re = re.compile(r'''
+    footer_re = re.compile(
+        r"""
     # 8.  One or more footers MAY be provided one blank line after the body. ...
     \n
 
@@ -43,7 +51,9 @@ class CommitMessage(object):
     # 8.  ..., followed by either a `: ` or ` #` separator, followed by a string value (this is inspired by the git
     #     trailer convention).
     (?::[ ]|[ ](?=[#]))
-    ''', re.VERBOSE)
+    """,
+        re.VERBOSE,
+    )
 
     def __init__(self, message, hexsha=None):
         if isinstance(message, str):
@@ -55,8 +65,7 @@ class CommitMessage(object):
                     hexsha = message.hexsha
             except AttributeError:
                 pass
-        if hexsha is not None:
-            self.hexsha = hexsha
+        self.hexsha = hexsha
 
         # Discover starts of lines
         self._line_index = [m.end() for m in re.finditer(self.line_separator, self.message)]
@@ -67,12 +76,12 @@ class CommitMessage(object):
         autosquash = self.autosquash_re.match(self.message)
         self._autosquash_end = autosquash.end() if autosquash is not None else 0
 
-        merge = self.merge_re.match(self.message[self._autosquash_end:])
+        merge = self.merge_re.match(self.message[self._autosquash_end :])
         self._subject_start = self._autosquash_end + (merge.end() if merge is not None else 0)
 
         # Discover starts of paragraphs
         self._paragraph_index = [m.end() for m in re.finditer(self.paragraph_separator, self.message)]
-        if not self.message[self._line_index[1] - len(self.line_separator):].startswith(self.paragraph_separator):
+        if not self.message[self._line_index[1] - len(self.line_separator) :].startswith(self.paragraph_separator):
             self._paragraph_index.insert(0, self._line_index[1])
         self._paragraph_index.append(len(self.message) + len(self.paragraph_separator))
 
@@ -80,23 +89,27 @@ class CommitMessage(object):
         if self.message and self.message[-1] == self.line_separator:
             self._paragraph_index[-1] -= 1
 
-        self._footer_index = [(m.group('token'), m.start(), m.end()) for m in self.footer_re.finditer(self.message)]
+        self._footer_index = [(m.group("token"), m.start(), m.end()) for m in self.footer_re.finditer(self.message)]
 
     @property
     def lines(self):
         return _IndexedList(self.message, self._line_index, self.line_separator)
 
     @property
-    def full_subject(self):
-        return self.message[:self._line_index[1] - 1]
-
-    @property
     def subject_start(self):
         return self._subject_start
 
     @property
+    def subject_end(self):
+        return self._line_index[1] - 1
+
+    @property
+    def full_subject(self):
+        return self.message[: self.subject_end]
+
+    @property
     def subject(self):
-        return self.full_subject[self.subject_start:]
+        return self.full_subject[self.subject_start :]
 
     @property
     def autosquash_end(self):
@@ -107,11 +120,15 @@ class CommitMessage(object):
 
     @property
     def autosquashed_subject(self):
-        return self.full_subject[self.autosquash_end:]
+        return self.full_subject[self.autosquash_end :]
+
+    @property
+    def body_start(self):
+        return self._paragraph_index[0]
 
     @property
     def body(self):
-        return self.message[self._paragraph_index[0]:]
+        return self.message[self.body_start :]
 
     @property
     def paragraphs(self):
@@ -123,9 +140,34 @@ class CommitMessage(object):
         idx = self._paragraph_index[idx]
         return self.message[:idx].count(self.line_separator)
 
+    def footer_start(self, nr):
+        if not self._footer_index or len(self._footer_index) <= nr:
+            return None
+        return self._footer_index[nr][1]
+
     @property
     def footers(self):
-        return _FooterList(self.message, self._footer_index)
+        return FooterList(self.message, self._footer_index)
+
+    @property
+    def separator(self):
+        return None
+
+    @property
+    def type(self):
+        return None
+
+    @property
+    def scope(self):
+        return None
+
+    @property
+    def description(self):
+        return None
+
+    @property
+    def breaking_subject(self):
+        return None
 
     def has_breaking_change(self):
         return None
@@ -144,7 +186,12 @@ class CommitMessage(object):
 
 
 class ConventionalCommit(CommitMessage):
-    strict_subject_re = re.compile(r'''
+    """
+    This class is the specialized representation of a Conventional Commit message.
+    """
+
+    conv_subject_re = re.compile(
+        r"""
     ^
     # 1. Commits MUST be prefixed with a type, which consists of a noun, feat, fix, etc., ...
     (?P<type_tag>\w+)
@@ -154,19 +201,22 @@ class ConventionalCommit(CommitMessage):
     (?: \( (?P<scope> [^()]* ) \) )?
 
     # 1. Commits MUST be prefixed with a type, ..., followed by ..., OPTIONAL `!`, ...
-    (?P<breaking>\s*!(?:\s+(?=:))?)?
+    (?P<breaking>\s*!+(?:\s+(?=:))?)?
 
     # 1. Commits MUST be prefixed with a type, ..., and REQUIRED terminal colon and space.
-    (?P<separator>:?[ ]?)
+    (?P<separator>[ ]*:?[ ]?)
 
     # 5. A description MUST immediately follow the colon and space after the type/scope prefix. The description is a
     #    short description of the code changes, e.g., fix: array parsing issue when multiple spaces were contained in
     #    string.
     (?P<description>.*)
     $
-    ''', re.VERBOSE)
+    """,
+        re.VERBOSE,
+    )
 
-    footer_re = re.compile(r'''
+    footer_re = re.compile(
+        r"""
     # 8.  One or more footers MAY be provided one blank line after the body. ...
     \n
 
@@ -175,7 +225,7 @@ class ConventionalCommit(CommitMessage):
 
     # 9.  A footer's token MUST use `-` in place of whitespace characters, e.g. `Acked-by` (this helps differentiate
     #     the footer section from a multi-paragraph body). ...
-        \w+(?:-\w+)*
+    [\w][\w\- ]+
 
     # 9.  ... An exception is made for `BREAKING CHANGE`, which MAY
     #     also be used as a token.
@@ -185,65 +235,89 @@ class ConventionalCommit(CommitMessage):
     # 8.  ..., followed by either a `: ` or ` #` separator, followed by a string value (this is inspired by the git
     #     trailer convention).
     (?::[ ]|[ ](?=[#]))
-    ''', re.VERBOSE)
+    """,
+        re.VERBOSE,
+    )
 
     def __init__(self, message, hexsha=None):
         super().__init__(message, hexsha=hexsha)
-        m = self.strict_subject_re.match(self.subject)
+        m = self.conv_subject_re.match(self.subject)
         if not m:
-            raise RuntimeError(f"commit message's subject ({self.subject!r}) not formatted according to Conventional Commits ({self.strict_subject_re.pattern})")
-        self.type_tag     = m.group('type_tag')
-        self.scope        = m.group('scope')
-        self._is_breaking = m.group('breaking')
-        self.description  = m.group('description')
-
-        if re.search(r'[A-Z]', self.type_tag):
-            raise RuntimeError("commit message's type tag ({self.type_tag!r}) contains upper case letters but isn't allowed to".format(self=self))
-
-        if self.scope is not None and not re.match(r'^\S+(?:.*\S+)?$', self.scope):
-            raise RuntimeError("commit message's scope ({self.scope!r}) is empty or contains excess whitespace but shouldn't".format(self=self))
-
-        if self._is_breaking is not None and self._is_breaking != '!':
-            raise RuntimeError("breaking change indicator in commit message's subject should be exactly '!' (have: {self._is_breaking!r})".format(self=self))
-
-        if m.group('separator') != ': ':
-            raise RuntimeError("commit message's subject lacks a ': ' separator after the type tag (subject={self.subject!r})".format(self=self))
-
-        if not self.description:
-            raise RuntimeError("commit message's subject lacks a description after the type tag (subject={self.subject!r})".format(self=self))
+            raise ParsingError(
+                f"commit message's subject ({self.subject!r}) not formatted according to Conventional Commits ({self.conv_subject_re.pattern})"
+            )
+        self.type_tag = m.group("type_tag")
+        self._scope = m.group("scope")
+        self._breaking_subject = m.group("breaking")
+        self._description = m.group("description")
+        self._separator = m.group("separator")
 
         # 10. A footer's value MAY contain spaces and newlines, and parsing MUST terminate when the next valid footer
         #     token/separator pair is observed.
-        self._footer_index = [(m.group('token'), m.start(), m.end()) for m in self.footer_re.finditer(self.message)]
+        self._footer_index = [(m.group("token"), m.start(), m.end()) for m in self.footer_re.finditer(self.message)]
 
     @property
     def footers(self):
-        return _ConventionalFooterList(self.message, self._footer_index)
+        return ConventionalFooterList(self.message, self._footer_index)
+
+    @property
+    def separator(self):
+        return self._separator
+
+    @property
+    def type(self):
+        return self.type_tag
+
+    @property
+    def scope(self):
+        return self._scope
+
+    @property
+    def description(self):
+        return self._description
+
+    @property
+    def breaking_subject(self):
+        return self._breaking_subject
 
     def has_breaking_change(self):
-        if self._is_breaking:
+        if self._breaking_subject:
             return True
 
         for token, value in self.footers:
-            if token == 'BREAKING CHANGE':
+            if token == BREAKING_CHANGE_TOKEN:
                 return True
 
         return False
 
     def has_new_feature(self):
-        return self.type_tag.lower() == 'feat'
+        return self.type_tag.lower() == "feat"
 
     def has_fix(self):
-        return self.type_tag.lower() == 'fix'
+        return self.type_tag.lower() == "fix"
 
 
-def parse_commit_message(message, policy=None, strict=False):
-    if policy == 'conventional-commits':
+def parse_commit_message(
+    message: typing.Union[git.Commit, str], policy: typing.Optional[str] = "conventional-commits", strict=False
+) -> typing.Union[ConventionalCommit, CommitMessage]:
+    """
+    Returns a ConventionalCommit object (or a CommitMessage object if it can't be parsed as such).
+
+    The `policy` parameter can be set to the policy that should be used (currently only "conventional-commits", which is default), or None.
+    If the `strict=True` parameter is provided, a `ParsingError` will be raised if `message` couldn't be parsed as a ConventionalCommit.
+    """
+    if policy == "conventional-commits":
         try:
-            return ConventionalCommit(message)
-        except RuntimeError:
+            commit = ConventionalCommit(message)
+            if strict:
+                from commisery.rules import validate_strict_default_rules
+                validate_strict_default_rules(commit)
+        except ParsingError:
             if strict:
                 raise
+        else:
+            return commit
+
     return CommitMessage(message)
 
 
@@ -259,10 +333,10 @@ class _IndexedList(object):
     def __getitem__(self, idx):
         if idx < 0:
             idx += len(self)
-        return self._message[self._index[idx] : self._index[idx+1] - len(self.separator)]
+        return self._message[self._index[idx] : self._index[idx + 1] - len(self.separator)]
 
 
-class _FooterList(object):
+class FooterList(object):
     def __init__(self, message, index):
         self._message = message
         self._index = index
@@ -280,17 +354,17 @@ class _FooterList(object):
         if idx < 0:
             idx += len(self)
         token, token_start, content_start = self._index[idx]
-        content_end = self._index[idx+1][1] if idx + 1 < len(self) else len(self._message)
-        while content_end > content_start and self._message[content_end-1] == '\n':
+        content_end = self._index[idx + 1][1] if idx + 1 < len(self) else len(self._message)
+        while content_end > content_start and self._message[content_end - 1] == "\n":
             content_end -= 1
 
         # 16. `BREAKING-CHANGE` MUST be synonymous with `BREAKING CHANGE`, when used as a token in a footer.
-        if token == 'BREAKING-CHANGE':
-            token = 'BREAKING CHANGE'
+        if token == "BREAKING-CHANGE":
+            token = BREAKING_CHANGE_TOKEN
 
         return _Footer(token=token, value=self._message[content_start:content_end])
 
-    def get(self, key : str, default=()) -> typing.Sequence:
+    def get(self, key: str, default=()) -> typing.Sequence:
         if not isinstance(key, str):
             raise TypeError(f"Only 'str' keys are supported, '{type(key).__name__}' passed instead")
         try:
@@ -299,36 +373,34 @@ class _FooterList(object):
             return default
 
 
-class _ConventionalFooterList(_FooterList):
+class ConventionalFooterList(FooterList):
     def __getitem__(self, idx):
         # 16. `BREAKING-CHANGE` MUST be synonymous with `BREAKING CHANGE`, when used as a token in a footer.
         if isinstance(idx, str):
-            if idx.casefold() == 'BREAKING-CHANGE'.casefold():
-                idx = 'BREAKING CHANGE'
+            if idx.casefold() == "BREAKING-CHANGE".casefold():
+                idx = BREAKING_CHANGE_TOKEN
             return super().__getitem__(idx)
         else:
             footer = super().__getitem__(idx)
-            if footer.token == 'BREAKING-CHANGE':
-                return _Footer('BREAKING CHANGE', footer.value)
+            if footer.token == "BREAKING-CHANGE":
+                return _Footer(BREAKING_CHANGE_TOKEN, footer.value)
             else:
                 return footer
 
 
 def _strip_message(message):
-    cut_line = message.find('# ------------------------ >8 ------------------------\n')
-    if cut_line >= 0 and (cut_line == 0 or message[cut_line - 1] == '\n'):
+    cut_line = message.find("# ------------------------ >8 ------------------------\n")
+    if cut_line >= 0 and (cut_line == 0 or message[cut_line - 1] == "\n"):
         message = message[:cut_line]
 
     # Strip comments
-    message = re.sub(r'^#[^\n]*\n?', '', message, flags=re.MULTILINE)
+    message = re.sub(r"^#[^\n]*\n?", "", message, flags=re.MULTILINE)
     # Strip trailing whitespace from lines
-    message = re.sub(r'[ \t]+$', '', message, flags=re.MULTILINE)
-    # Merge consecutive empty lines into a single empty line
-    message = re.sub(r'(?<=\n\n)\n+', '', message)
+    message = re.sub(r"[ \t]+$", "", message, flags=re.MULTILINE)
     # Remove empty lines from the beginning and end
-    while message[:1] == '\n':
+    while message[:1] == "\n":
         message = message[1:]
-    while message[-2:] == '\n\n':
+    while message[-2:] == "\n\n":
         message = message[:-1]
 
     return message
