@@ -35,12 +35,8 @@ def check_commit(commit, config: Configuration):
             message = file.read()
 
     except IOError:
-        commit = subprocess.check_output(("git", "rev-parse", commit))[:-1].decode(
-            "UTF-8"
-        )
-        message = subprocess.check_output(
-            ("git", "show", "-q", "--format=%B", commit, "--")
-        )[:-1].decode("UTF-8")
+        commit = subprocess.check_output(("git", "rev-parse", commit))[:-1].decode("UTF-8")
+        message = subprocess.check_output(("git", "show", "-q", "--format=%B", commit, "--"))[:-1].decode("UTF-8")
 
     commit_message = parse_commit_message(message)
 

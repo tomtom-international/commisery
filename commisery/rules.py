@@ -138,10 +138,7 @@ def C005_separator_contains_trailing_whitespaces(message: COMMIT_TYPE, config: C
             message=C005_separator_contains_trailing_whitespaces.__doc__,
             line=message.subject,
             column_number=logging.Range(
-                start=len(message.subject)
-                - len(message.autosquashed_subject)
-                + message.autosquashed_subject.find(message.separator)
-                + 1,
+                start=len(message.subject) - len(message.autosquashed_subject) + message.autosquashed_subject.find(message.separator) + 1,
                 range=len(message.separator) + len(message.description),
             ),
             expectations=f": {message.description}",
@@ -158,9 +155,7 @@ def C006_scope_should_not_be_empty(message: COMMIT_TYPE, _: Configuration):
         raise logging.Error(
             message=C006_scope_should_not_be_empty.__doc__,
             line=message.subject,
-            column_number=logging.Range(
-                start=message.subject.find("(") + 1, range=len(message.scope) + 2
-            ),
+            column_number=logging.Range(start=message.subject.find("(") + 1, range=len(message.scope) + 2),
         )
 
 
@@ -179,9 +174,7 @@ def C007_scope_contains_whitespace(message: COMMIT_TYPE, config: Configuration):
         raise logging.Error(
             message=C007_scope_contains_whitespace.__doc__,
             line=message.subject,
-            column_number=logging.Range(
-                start=message.subject.find("(") + 2, range=len(message.scope)
-            ),
+            column_number=logging.Range(start=message.subject.find("(") + 2, range=len(message.scope)),
             expectations=message.scope.strip(),
         )
 
@@ -247,10 +240,7 @@ def C011_only_single_breaking_indicator(message: COMMIT_TYPE, _: Configuration):
             message=C011_only_single_breaking_indicator.__doc__,
             line=message.subject,
             column_number=logging.Range(
-                start=len(message.subject)
-                - len(message.autosquashed_subject)
-                + message.autosquashed_subject.find("!")
-                + 1,
+                start=len(message.subject) - len(message.autosquashed_subject) + message.autosquashed_subject.find("!") + 1,
                 range=len(message.breaking_subject.strip()),
             ),
             expectations="!",
@@ -368,9 +358,7 @@ def C016_description_in_imperative_mood(message: COMMIT_TYPE, config: Configurat
         "verifies",
         "verifying",
     )
-    blacklist = re.compile(
-        "|".join(re.escape(w) for w in common_non_imperative_verbs), re.IGNORECASE
-    )
+    blacklist = re.compile("|".join(re.escape(w) for w in common_non_imperative_verbs), re.IGNORECASE)
     blacklisted_verbs = blacklist.match(message.description)
 
     if blacklisted_verbs:

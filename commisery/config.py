@@ -98,9 +98,7 @@ class Configuration:
             data = yaml.safe_load(file)
 
             if not isinstance(data, dict):
-                raise TypeError(
-                    f"'{config_path}' got an unexpected keyword type for the root"
-                )
+                raise TypeError(f"'{config_path}' got an unexpected keyword type for the root")
 
             for item, expected in [
                 ("max-subject-length", Configuration.max_subject_length),

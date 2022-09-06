@@ -34,8 +34,7 @@ except ImportError:
 
 try:
     _hopic_version = tuple(
-        (int(x) if re.match("^[0-9]+$", x) else x)
-        for x in metadata.version("hopic").split(".")
+        (int(x) if re.match("^[0-9]+$", x) else x) for x in metadata.version("hopic").split(".")
     )
 
     if sys.version_info >= (3, 8):
@@ -79,9 +78,7 @@ def run_with_config(config, *args, files={}, env=None, cfg_file="hopic-ci-config
             if result.stderr_bytes:
                 print(result.stderr, end="", file=sys.stderr)
 
-            if result.exception is not None and not isinstance(
-                result.exception, SystemExit
-            ):
+            if result.exception is not None and not isinstance(result.exception, SystemExit):
                 raise result.exception
 
             yield result
@@ -126,9 +123,7 @@ def test_commisery_template_range(capfd, monkeypatch, ticket):
 
         @property
         def committed_datetime(self) -> datetime.datetime:
-            return datetime.datetime.utcfromtimestamp(0).replace(
-                tzinfo=datetime.timezone.utc
-            )
+            return datetime.datetime.utcfromtimestamp(0).replace(tzinfo=datetime.timezone.utc)
 
     class MockGitInfo:
         source_commit = MockCommit("OUR_SOURCE_COMMIT")

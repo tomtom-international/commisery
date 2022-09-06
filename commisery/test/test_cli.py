@@ -111,18 +111,14 @@ def test_cli_rev_ranges(commisery_cli, rev_range, expected_exit_code):
     ),
 )
 def test_cli_with_accepted_tags(commisery_cli, commits, with_tags, expected_exit_code):
-    result = commisery_cli(
-        commit_messages=commits, rev_range=("HEAD", "HEAD"), with_tags=with_tags
-    )
+    result = commisery_cli(commit_messages=commits, rev_range=("HEAD", "HEAD"), with_tags=with_tags)
     assert result.exit_code == expected_exit_code
 
 
 @pytest.mark.parametrize("rev_range", (("HEAD",), ("HEAD", "HEAD")))
 @pytest.mark.parametrize("commit", (tag for tag in DEFAULT_ACCEPTED_TAGS))
 def test_cli_default_tags(commisery_cli, rev_range, commit):
-    result = commisery_cli(
-        commit_messages=(f"{commit}: correct commit",), rev_range=rev_range
-    )
+    result = commisery_cli(commit_messages=(f"{commit}: correct commit",), rev_range=rev_range)
     assert result.exit_code == 0
 
 

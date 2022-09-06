@@ -1,0 +1,3 @@
+[tool.black]
+include = "commisery"
+line-length = 140

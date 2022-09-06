@@ -12,10 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from commisery.checking import validate_commit_message
-from commisery.config import Configuration
 import pytest
-from ..commit import parse_commit_message, parse_commit_message
+from commisery.config import Configuration
+from ..commit import parse_commit_message
 
 
 def test_basic_message_strip_and_splitup():

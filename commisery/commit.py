@@ -284,7 +284,7 @@ class ConventionalCommit(CommitMessage):
         if self._breaking_subject:
             return True
 
-        for token, value in self.footers:
+        for token, _ in self.footers:
             if token == BREAKING_CHANGE_TOKEN:
                 return True
 
@@ -353,7 +353,7 @@ class FooterList(object):
 
         if idx < 0:
             idx += len(self)
-        token, token_start, content_start = self._index[idx]
+        token, _, content_start = self._index[idx]
         content_end = self._index[idx + 1][1] if idx + 1 < len(self) else len(self._message)
         while content_end > content_start and self._message[content_end - 1] == "\n":
             content_end -= 1
@@ -380,12 +380,11 @@ class ConventionalFooterList(FooterList):
             if idx.casefold() == "BREAKING-CHANGE".casefold():
                 idx = BREAKING_CHANGE_TOKEN
             return super().__getitem__(idx)
-        else:
-            footer = super().__getitem__(idx)
-            if footer.token == "BREAKING-CHANGE":
-                return _Footer(BREAKING_CHANGE_TOKEN, footer.value)
-            else:
-                return footer
+
+        footer = super().__getitem__(idx)
+        if footer.token == "BREAKING-CHANGE":
+            return _Footer(BREAKING_CHANGE_TOKEN, footer.value)
+        return footer
 
 
 def _strip_message(message):
