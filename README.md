@@ -64,9 +64,10 @@ Options:
   --help                          Show this message and exit.
 
 Commands:
-  check     Checks whether commit messages adhere to the Convention Commits...
-  commit    Creates a conventional commit
-  overview  Lists the accepted Conventional Commit tags and Rules (incl.
+  check         Checks whether commit messages adhere to the Convention Commits...
+  commit        Creates a conventional commit
+  next-version  Provides the next version based on Conventional Commit...
+  overview      Lists the accepted Conventional Commit tags and Rules (incl.
 ```
 
 ### Create and Commit a new Conventional Commit
@@ -99,9 +100,40 @@ $ cm check :/'refactor'..HEAD
 $ cm check 2fff3d8..8c33495
 ```
 
-The exit code of will be non-zero *if and only if* it found errors in the given commit message(s).
+Commisery's exit code will be non-zero if it found errors in the given commit message(s).
 
 > **NOTE**: *in order to remain backwards compatible, the command `commisery-verify-msg` can be used as alternative for `cm check`*
+
+### Next version for commits
+
+Commisery can determine the next version, based on Conventional Commit messages since the latest tag.
+The bumping behavior is as follows:
+ - breaking changes bump major
+ - `feat` types bump minor
+ - `fix` types bump patch
+
+If no bumping commits are found since the latest tag, `cm next-version` will return an empty string on standard output.
+
+For example:
+```
+$ git log --oneline --decorate-refs tags
+3e3eb7b feat: add even better component Y
+1021f70 test(componentX): add unit tests
+7177f78 feat: add component X
+227a58f (tag: 1.0.0) feat: initial implementation
+$ cm next-version
+1.1.0
+```
+
+The next version (if any) will be printed to standard output, while any informational or error messages will be printed to standard error.
+
+A very basic example of bumping logic that can be used in CI systems:
+```sh
+BUMPED_VERSION=`cm next-version`
+if [ ! -z "$BUMPED_VERSION" ]; then
+  git tag $BUMPED_VERSION
+fi
+```
 
 ### (Pre-) Commit hook
 
