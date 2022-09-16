@@ -1,4 +1,4 @@
-# Copyright (c) 2018 - 2022 TomTom N.V. (https://tomtom.com)
+# Copyright (c) 2018 - 2019 TomTom N.V. (https://tomtom.com)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,271 +12,323 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
+from collections import namedtuple
 import re
-
-from dataclasses import dataclass, field
-from typing import Any, Optional, Sequence
-
-from commisery.config import Configuration
-
-BREAKING_CHANGE_TOKEN = "BREAKING CHANGE"
-
-CONVENTIONAL_COMMIT_REGEX = re.compile(
-    r"""
-        # 1. Commits MUST be prefixed with a type, which consists of a noun, feat, fix, etc.,
-        # followed by the OPTIONAL scope, OPTIONAL !, and REQUIRED terminal colon and space.
-        (?P<type>\w+)?
-        # 4. A scope MAY be provided after a type. A scope MUST consist of a noun describing a
-        # section of the codebase surrounded by parenthesis, e.g., fix(parser):
-        (?: \( (?P<scope> [^()]* ) \) )?
-        # 1. Commits MUST be prefixed with a type, which consists of a noun, feat, fix, etc.,
-        # followed by the OPTIONAL scope, OPTIONAL !, and REQUIRED terminal colon and space.
-        (?P<breaking_change>((\s*)+[!]+(\s*)?)?)
-        # 5. A description MUST immediately follow the colon and space after the type/scope prefix.
-        # The description is a short summary of the code changes, e.g., fix: array parsing issue when
-        # multiple spaces were contained in string.
-        (?P<separator>((\s+)?:?(\s+)?))
-        # 5. A description MUST immediately follow the colon and space after the type/scope prefix.
-        # The description is a short summary of the code changes, e.g., fix: array parsing issue when
-        # multiple spaces were contained in string.
-        (?P<description>.*)
-        """,
-    re.VERBOSE,
-)
-
-FOOTER_REGEX = re.compile(
-    r"""
-        # 8. One or more footers MAY be provided one blank line after the body. Each footer MUST consist
-        # of a word token, followed by either a :<space> or <space># separator, followed by a string value
-        # (this is inspired by the git trailer convention).
-        #
-        # 9. A footer’s token MUST use - in place of whitespace characters, e.g., Acked-by (this helps
-        # differentiate the footer section from a multi-paragraph body). An exception is made for
-        # BREAKING CHANGE, which MAY also be used as a token.
-        ^(?P<token>[\w\- ]+|BREAKING\sCHANGE)(?::[ ]|[ ](?=[#]))(?P<value>.*)
-    """,
-    re.VERBOSE,
-)
+import typing
 
 
-@dataclass
-class Footer:
-    """Git Trailer"""
-
-    _token: str
-    value: Sequence[str]
-
-    def __post_init__(self):
-        """Post initializer"""
-
-        # NOTE: Required to use apply the property decorator on construction
-        self.token = self._token
-
-    @property
-    def token(self):
-        """Retrieve the token name"""
-        return self._token
-
-    @token.setter
-    def token(self, token: str):
-        """Sets the token name"""
-
-        # 16. `BREAKING-CHANGE` MUST be synonymous with `BREAKING CHANGE`, when used as a token in a footer.
-        if token == "BREAKING-CHANGE":
-            token = BREAKING_CHANGE_TOKEN
-
-        self._token = token
-
-    def __str__(self):
-        if self.value[0].startswith("#"):
-            return f"{self.token} {os.linesep.join(self.value)}"
-
-        return f"{self.token}: {os.linesep.join(self.value)}"
+_Footer = namedtuple('Footer', ('token', 'value'))
 
 
-@dataclass
-class CommitMessage:
-    """Conventional Commit Message"""
+class CommitMessage(object):
+    line_separator = '\n'
+    paragraph_separator = '\n\n'
+    autosquash_re = re.compile(r'^(?:(?:fixup|squash)!\s+)+')
+    merge_re = re.compile(r'^Merge.*?:[ \t]*')
 
-    body: Sequence[str] = field(default_factory=list)
-    breaking_change: Optional[str] = None
-    description: Optional[str] = None
-    footers: Sequence[Footer] = field(default_factory=list)
-    hexsha: Optional[str] = None
-    separator: Optional[str] = None
-    scope: Optional[str] = None
-    type: Optional[str] = None
+    # Variation of conventional commits footer that more closely matches 'git trailers'.
+    # In particular it doesn't permit 'BREAKING CHANGE' (with a space, instead of '-') as a footer's token.
+    footer_re = re.compile(r'''
+    # 8.  One or more footers MAY be provided one blank line after the body. ...
+    \n
+
+    # 8.  ... Each footer MUST consist of a word token, ...
+    (?P<token>
+
+    # 9.  A footer's token MUST use `-` in place of whitespace characters, e.g. `Acked-by` (this helps differentiate
+    #     the footer section from a multi-paragraph body). ...
+        \w+(?:-\w+)*
+    )
+
+    # 8.  ..., followed by either a `: ` or ` #` separator, followed by a string value (this is inspired by the git
+    #     trailer convention).
+    (?::[ ]|[ ](?=[#]))
+    ''', re.VERBOSE)
+
+    def __init__(self, message, hexsha=None):
+        if isinstance(message, str):
+            self.message = _strip_message(message)
+        else:
+            self.message = _strip_message(message.message)
+            try:
+                if hexsha is None:
+                    hexsha = message.hexsha
+            except AttributeError:
+                pass
+        if hexsha is not None:
+            self.hexsha = hexsha
+
+        # Discover starts of lines
+        self._line_index = [m.end() for m in re.finditer(self.line_separator, self.message)]
+        self._line_index.insert(0, 0)
+        if len(self._line_index) < 2 or self._line_index[-1] < len(self.message):
+            self._line_index.append(len(self.message) + 1)
+
+        autosquash = self.autosquash_re.match(self.message)
+        self._autosquash_end = autosquash.end() if autosquash is not None else 0
+
+        merge = self.merge_re.match(self.message[self._autosquash_end:])
+        self._subject_start = self._autosquash_end + (merge.end() if merge is not None else 0)
+
+        # Discover starts of paragraphs
+        self._paragraph_index = [m.end() for m in re.finditer(self.paragraph_separator, self.message)]
+        if not self.message[self._line_index[1] - len(self.line_separator):].startswith(self.paragraph_separator):
+            self._paragraph_index.insert(0, self._line_index[1])
+        self._paragraph_index.append(len(self.message) + len(self.paragraph_separator))
+
+        # Strip last line terminator from the last paragraph.
+        if self.message and self.message[-1] == self.line_separator:
+            self._paragraph_index[-1] -= 1
+
+        self._footer_index = [(m.group('token'), m.start(), m.end()) for m in self.footer_re.finditer(self.message)]
 
     @property
-    def subject(self):
-        """Composes the subject line from the provided elements"""
-
-        subject = self.type or ""
-
-        if self.scope:
-            subject += f"({self.scope})"
-
-        subject += f"{self.breaking_change}{self.separator}{self.description}"
-
-        return subject
-
-    @property
-    def squashed_subject(self):
-        """(Auto-) squashed subject"""
-        return strip_subject(self.subject)
+    def lines(self):
+        return _IndexedList(self.message, self._line_index, self.line_separator)
 
     @property
     def full_subject(self):
-        """To maintain backwards compatibility"""
-        return self.subject
+        return self.message[:self._line_index[1] - 1]
 
-    def __str__(self):
-        """Full commit message representation"""
-        message = self.subject
+    @property
+    def subject_start(self):
+        return self._subject_start
 
-        if len(self.body) > 0:
-            message += os.linesep + os.linesep.join(self.body)
+    @property
+    def subject(self):
+        return self.full_subject[self.subject_start:]
 
-        if len(self.footers) > 0:
-            message += os.linesep + os.linesep.join(
-                [str(footer) for footer in self.footers]
-            )
+    @property
+    def autosquash_end(self):
+        return self._autosquash_end
 
-        return message
+    def needs_autosquash(self):
+        return self.autosquash_end > 0
 
-    @classmethod
-    def from_message(cls: Any, message: str):
-        """Converts commit message to Class object"""
+    @property
+    def autosquashed_subject(self):
+        return self.full_subject[self.autosquash_end:]
 
-        message = strip_message(message).split(os.linesep)
+    @property
+    def body(self):
+        return self.message[self._paragraph_index[0]:]
 
-        subject = message[0]
-        footers, body = [], []
-        has_breaking_change = False
+    @property
+    def paragraphs(self):
+        return _IndexedList(self.message, self._paragraph_index, self.paragraph_separator)
 
-        # Retrieve subject, body and footers
-        if len(message) > 1:
-            end_of_body = 1
-            for idx, line in enumerate(message[1:], 1):
-                matches = FOOTER_REGEX.match(line)
+    def paragraph_line(self, idx):
+        if idx < 0:
+            idx += len(self._paragraph_index) - 1
+        idx = self._paragraph_index[idx]
+        return self.message[:idx].count(self.line_separator)
 
-                # Git trailer found
-                if matches:
-                    footers.append(
-                        Footer(matches.group("token"), [matches.group("value")])
-                    )
-                    if footers[-1].token == BREAKING_CHANGE_TOKEN:
-                        has_breaking_change = True
-
-                # Multiline trailers use folding
-                elif len(footers) > 0 and line.startswith(" "):
-                    footers[-1].value.append(line)
-
-                # Allow blank lines after BREAKING[- ]CHANGE
-                elif has_breaking_change and not line:
-                    # Insert empty footer items for blank lines between
-                    # git trailers following BREAKING CHANGE
-                    if footers[-1].token != BREAKING_CHANGE_TOKEN:
-                        footers.append(Footer("", [""]))
-                    continue
-
-                # Discard detected git trailers as non-compliant item has been found
-                else:
-                    end_of_body = idx
-                    footers = []
-
-            # Set the body
-            body = message[1:end_of_body] if end_of_body > 1 else [message[end_of_body]]
-
-        # (OPTIONAL) Parse Conventional Commit properties
-        conventional_subject = CONVENTIONAL_COMMIT_REGEX.match(strip_subject(subject))
-        if not conventional_subject:
-            conventional_subject = {}
-
-        return cls(
-            **conventional_subject.groupdict(),
-            body=body,
-            footers=footers,
-        )
-
-    def is_merge(self):
-        """Return whether the commit message is a merge commit"""
-
-        return self.type is not None and self.type.lower() == "merge"
-
-    def has_fix(self):
-        """Returns whether the commit message is a (bug) fix"""
-
-        # 3. The type fix MUST be used when a commit represents a bug fix for your application.
-        return self.type is not None and self.type.lower() == "fix"
-
-    def has_new_feature(self):
-        """Returns whether the commit contains a new feature"""
-
-        # 2. The type feat MUST be used when a commit adds a new feature to your application
-        # or library.
-        return self.type is not None and self.type.lower() == "feat"
+    @property
+    def footers(self):
+        return _FooterList(self.message, self._footer_index)
 
     def has_breaking_change(self):
-        """Returns whether the commit contains a breaking change"""
-        if self.breaking_change:
+        return None
+
+    def has_new_feature(self):
+        return None
+
+    def has_fix(self):
+        return None
+
+    def __repr__(self):
+        try:
+            return f"{self.__class__.__name__}({self.message!r}, {self.hexsha!r})"
+        except AttributeError:
+            return f"{self.__class__.__name__}({self.message!r})"
+
+
+class ConventionalCommit(CommitMessage):
+    strict_subject_re = re.compile(r'''
+    ^
+    # 1. Commits MUST be prefixed with a type, which consists of a noun, feat, fix, etc., ...
+    (?P<type_tag>\w+)
+
+    # 4. A scope MAY be provided after a type. A scope MUST consist of a noun describing a section of the codebase
+    #    surrounded by parenthesis, e.g., `fix(parser):`
+    (?: \( (?P<scope> [^()]* ) \) )?
+
+    # 1. Commits MUST be prefixed with a type, ..., followed by ..., OPTIONAL `!`, ...
+    (?P<breaking>\s*!(?:\s+(?=:))?)?
+
+    # 1. Commits MUST be prefixed with a type, ..., and REQUIRED terminal colon and space.
+    (?P<separator>:?[ ]?)
+
+    # 5. A description MUST immediately follow the colon and space after the type/scope prefix. The description is a
+    #    short description of the code changes, e.g., fix: array parsing issue when multiple spaces were contained in
+    #    string.
+    (?P<description>.*)
+    $
+    ''', re.VERBOSE)
+
+    footer_re = re.compile(r'''
+    # 8.  One or more footers MAY be provided one blank line after the body. ...
+    \n
+
+    # 8.  ... Each footer MUST consist of a word token, ...
+    (?P<token>
+
+    # 9.  A footer's token MUST use `-` in place of whitespace characters, e.g. `Acked-by` (this helps differentiate
+    #     the footer section from a multi-paragraph body). ...
+        \w+(?:-\w+)*
+
+    # 9.  ... An exception is made for `BREAKING CHANGE`, which MAY
+    #     also be used as a token.
+    | BREAKING[ ]CHANGE
+    )
+
+    # 8.  ..., followed by either a `: ` or ` #` separator, followed by a string value (this is inspired by the git
+    #     trailer convention).
+    (?::[ ]|[ ](?=[#]))
+    ''', re.VERBOSE)
+
+    def __init__(self, message, hexsha=None):
+        super().__init__(message, hexsha=hexsha)
+        m = self.strict_subject_re.match(self.subject)
+        if not m:
+            raise RuntimeError(f"commit message's subject ({self.subject!r}) not formatted according to Conventional Commits ({self.strict_subject_re.pattern})")
+        self.type_tag     = m.group('type_tag')
+        self.scope        = m.group('scope')
+        self._is_breaking = m.group('breaking')
+        self.description  = m.group('description')
+
+        if re.search(r'[A-Z]', self.type_tag):
+            raise RuntimeError("commit message's type tag ({self.type_tag!r}) contains upper case letters but isn't allowed to".format(self=self))
+
+        if self.scope is not None and not re.match(r'^\S+(?:.*\S+)?$', self.scope):
+            raise RuntimeError("commit message's scope ({self.scope!r}) is empty or contains excess whitespace but shouldn't".format(self=self))
+
+        if self._is_breaking is not None and self._is_breaking != '!':
+            raise RuntimeError("breaking change indicator in commit message's subject should be exactly '!' (have: {self._is_breaking!r})".format(self=self))
+
+        if m.group('separator') != ': ':
+            raise RuntimeError("commit message's subject lacks a ': ' separator after the type tag (subject={self.subject!r})".format(self=self))
+
+        if not self.description:
+            raise RuntimeError("commit message's subject lacks a description after the type tag (subject={self.subject!r})".format(self=self))
+
+        # 10. A footer's value MAY contain spaces and newlines, and parsing MUST terminate when the next valid footer
+        #     token/separator pair is observed.
+        self._footer_index = [(m.group('token'), m.start(), m.end()) for m in self.footer_re.finditer(self.message)]
+
+    @property
+    def footers(self):
+        return _ConventionalFooterList(self.message, self._footer_index)
+
+    def has_breaking_change(self):
+        if self._is_breaking:
             return True
 
-        for footer in self.footers:
-            # 16. `BREAKING-CHANGE` MUST be synonymous with `BREAKING CHANGE`, when used as a token in a footer.
-            if footer.token == BREAKING_CHANGE_TOKEN:
+        for token, value in self.footers:
+            if token == 'BREAKING CHANGE':
                 return True
 
         return False
 
+    def has_new_feature(self):
+        return self.type_tag.lower() == 'feat'
+
+    def has_fix(self):
+        return self.type_tag.lower() == 'fix'
+
 
 def parse_commit_message(message, policy=None, strict=False):
-    """Creates a Commit Message based on the provided policy"""
-
-    from commisery.checking import validate_commit_message
-
-    commit_message = CommitMessage.from_message(message)
-
-    if (
-        policy == "conventional-commits"
-        and strict
-        and validate_commit_message(commit_message, Configuration()) > 0
-    ):
-        raise RuntimeError(
-            "Commit message is not according to the Conventional Commit specification"
-        )
-
-    return commit_message
+    if policy == 'conventional-commits':
+        try:
+            return ConventionalCommit(message)
+        except RuntimeError:
+            if strict:
+                raise
+    return CommitMessage(message)
 
 
-def strip_message(message: str):
-    """Removes comments and all lines after the cut-line"""
-    cut_line = message.find("# ------------------------ >8 ------------------------\n")
-    if cut_line >= 0 and (cut_line == 0 or message[cut_line - 1] == "\n"):
+class _IndexedList(object):
+    def __init__(self, message, index, separator):
+        self._message = message
+        self._index = index
+        self.separator = separator
+
+    def __len__(self):
+        return len(self._index) - 1
+
+    def __getitem__(self, idx):
+        if idx < 0:
+            idx += len(self)
+        return self._message[self._index[idx] : self._index[idx+1] - len(self.separator)]
+
+
+class _FooterList(object):
+    def __init__(self, message, index):
+        self._message = message
+        self._index = index
+
+    def __len__(self):
+        return len(self._index)
+
+    def __getitem__(self, idx):
+        if isinstance(idx, str):
+            matches = [footer.value for footer in self if footer.token.casefold() == idx.casefold()]
+            if not matches:
+                raise KeyError(f"{idx} not found in footer list")
+            return matches
+
+        if idx < 0:
+            idx += len(self)
+        token, token_start, content_start = self._index[idx]
+        content_end = self._index[idx+1][1] if idx + 1 < len(self) else len(self._message)
+        while content_end > content_start and self._message[content_end-1] == '\n':
+            content_end -= 1
+
+        # 16. `BREAKING-CHANGE` MUST be synonymous with `BREAKING CHANGE`, when used as a token in a footer.
+        if token == 'BREAKING-CHANGE':
+            token = 'BREAKING CHANGE'
+
+        return _Footer(token=token, value=self._message[content_start:content_end])
+
+    def get(self, key : str, default=()) -> typing.Sequence:
+        if not isinstance(key, str):
+            raise TypeError(f"Only 'str' keys are supported, '{type(key).__name__}' passed instead")
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
+
+class _ConventionalFooterList(_FooterList):
+    def __getitem__(self, idx):
+        # 16. `BREAKING-CHANGE` MUST be synonymous with `BREAKING CHANGE`, when used as a token in a footer.
+        if isinstance(idx, str):
+            if idx.casefold() == 'BREAKING-CHANGE'.casefold():
+                idx = 'BREAKING CHANGE'
+            return super().__getitem__(idx)
+        else:
+            footer = super().__getitem__(idx)
+            if footer.token == 'BREAKING-CHANGE':
+                return _Footer('BREAKING CHANGE', footer.value)
+            else:
+                return footer
+
+
+def _strip_message(message):
+    cut_line = message.find('# ------------------------ >8 ------------------------\n')
+    if cut_line >= 0 and (cut_line == 0 or message[cut_line - 1] == '\n'):
         message = message[:cut_line]
 
-    # Remove comments
-    message = re.sub(r"^#[^\n]*\n?", "", message, flags=re.MULTILINE)
-
-    # Remove trailing empty lines
-    while message[0] == os.linesep:
+    # Strip comments
+    message = re.sub(r'^#[^\n]*\n?', '', message, flags=re.MULTILINE)
+    # Strip trailing whitespace from lines
+    message = re.sub(r'[ \t]+$', '', message, flags=re.MULTILINE)
+    # Merge consecutive empty lines into a single empty line
+    message = re.sub(r'(?<=\n\n)\n+', '', message)
+    # Remove empty lines from the beginning and end
+    while message[:1] == '\n':
         message = message[1:]
-
-    while message[-1] == os.linesep:
+    while message[-2:] == '\n\n':
         message = message[:-1]
 
     return message
-
-
-def strip_subject(subject: str):
-    """Autosquashes the commit and removes Merge statements from subject"""
-    autosquash = re.compile(r"^(?:(?:fixup|squash)!\s+)+").match(subject)
-    if autosquash:
-        subject = subject[autosquash.end() :]
-
-    merge = re.compile(r"^Merge.*?:[ \t]*").match(subject)
-    if merge:
-        subject = subject[merge.end() :]
-
-    return subject
