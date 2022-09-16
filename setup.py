@@ -40,6 +40,7 @@ setup(
       'click-log',
       'GitPython>=3,<4',
       'regex',
+      'PyYAML',
       'stemming>=1,<2',
       'dataclasses>=0.8,<1; python_version < "3.7.0"',
       'llvm-diagnostics>=3.0.0,<4',

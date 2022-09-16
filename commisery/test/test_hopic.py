@@ -37,9 +37,12 @@ try:
         (int(x) if re.match("^[0-9]+$", x) else x)
         for x in metadata.version("hopic").split(".")
     )
-    hopic_cli = [
-        ep for ep in metadata.entry_points()["console_scripts"] if ep.name == "hopic"
-    ][0].load()
+
+    if sys.version_info >= (3, 8):
+        _eps = metadata.entry_points().select(group="console_scripts")
+    else:
+        _eps = metadata.entry_points()["console_scripts"]
+    hopic_cli = [ep for ep in _eps if ep.name == "hopic"][0].load()
     from click.testing import CliRunner
     import git
 except metadata.PackageNotFoundError:
