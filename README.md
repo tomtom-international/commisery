@@ -160,7 +160,7 @@ max-subject-length: 120
 tags:
   docs: Documentation changes not part of the API
   example: Changes to example code in the repository
-disabled:
+disable:
   - C001
   - C018
 ```
@@ -169,7 +169,7 @@ disabled:
 | --- | --- | --- |
 | `max-subject-length` | `80` | The maximum length of the subject of the commit message |
 | `tags` | `fix`, `feat`, `build`, `chore`, `ci`, `docs`, `perf`, `refactor`, `revert`, `style`, `test`, `improvement` | Additional tags (including description). These tags will not result in a version bump.<br><br>**NOTE:** The tags `feat` and `fix` will automatically be provided |
-| `disabled` | `None` | List of rules to disable as part of the checker |
+| `disable` | `None` | List of rules to disable as part of the checker |
 
 By default `commisery` will search for the file `.commisery.yml`.
 You can specify a different file with the `--config` command line argument, i.e.
