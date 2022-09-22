@@ -20,12 +20,10 @@ import typing
 
 import llvm_diagnostics as logging
 
-from commisery.commit import BREAKING_CHANGE_TOKEN, CommitMessage, ConventionalCommit, ParsingError
+from commisery.commit import BREAKING_CHANGE_TOKEN, COMMIT_TYPE, ParsingError
 from commisery.config import Configuration, get_default_rules
 
 # pylint: disable=C0103  # disable `invalid-name`-checking
-
-COMMIT_TYPE = typing.Union[CommitMessage, ConventionalCommit]
 
 @dataclass
 class RuleResult:
@@ -458,7 +456,7 @@ def C023_breaking_change_must_be_first_git_trailer(message: COMMIT_TYPE, _: Conf
                 )
 
 
-def validate_strict_default_rules(commit: COMMIT_TYPE) -> RuleResult:
+def validate_strict_default_rules(commit: COMMIT_TYPE):
     """ Validates all default rules and raises a ParsingError if they do not all pass """
     config = Configuration()
     error_messages = ""
