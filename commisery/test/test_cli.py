@@ -25,7 +25,7 @@ log = logging.getLogger(__name__)
 def test_cli_range_of_correct_long_commits(commisery_cli):
     long_commit_messages = tuple(
         dedent(
-            f"""
+            f"""\
             chore: write a long message for this test
 
             This should be a proper commit body. Nice and long, too.
