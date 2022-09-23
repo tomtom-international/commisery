@@ -18,9 +18,10 @@
 
 import re
 import subprocess
+import typing
 
 from commisery.config import Configuration
-from commisery.commit import CommitMessage
+from commisery.commit import parse_commit_message, CommitMessage
 from commisery.rules import validate_commit_message_rule
 
 
@@ -34,14 +35,11 @@ def check_commit(commit, config: Configuration):
             message = file.read()
 
     except IOError:
-        commit = subprocess.check_output(("git", "rev-parse", commit))[:-1].decode(
-            "UTF-8"
-        )
-        message = subprocess.check_output(
-            ("git", "show", "-q", "--format=%B", commit, "--")
-        )[:-1].decode("UTF-8")
+        commit = subprocess.check_output(("git", "rev-parse", commit))[:-1].decode("UTF-8")
+        message = subprocess.check_output(("git", "show", "-q", "--format=%B", commit, "--"))[:-1].decode("UTF-8")
 
-    commit_message = CommitMessage.from_message(message)
+    commit_message = parse_commit_message(message)
+
     commit_message.hexsha = commit
 
     return validate_commit_message(commit_message, config)
@@ -51,8 +49,7 @@ def validate_commit_message(message: CommitMessage, config: Configuration):
     """Validates the provided commit message against specification"""
     error_count = 0
     for rule in config.rules:
-        error_count += validate_commit_message_rule(
-            rule=rule, message=message, config=config
-        )
+        result = validate_commit_message_rule(rule=rule, message=message, config=config)
+        error_count += 0 if result.passed else 1
 
     return 1 if error_count > 0 else 0

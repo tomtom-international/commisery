@@ -14,7 +14,7 @@
 
 from textwrap import dedent
 import pytest
-from commisery.commit import CommitMessage
+from commisery.commit import parse_commit_message
 from commisery.config import Configuration
 from commisery import rules
 
@@ -24,10 +24,10 @@ import llvm_diagnostics as logger
 def __validate_rule(rule, message, exception):
     if exception:
         with pytest.raises(logger.Error) as exc_info:
-            rule(CommitMessage.from_message(message), Configuration())
+            rule(parse_commit_message(message), Configuration())
         assert exc_info.value.message.startswith(rule.__doc__)
     else:
-        rule(CommitMessage.from_message(message), Configuration())
+        rule(parse_commit_message(message), Configuration())
 
 
 @pytest.mark.parametrize(
@@ -80,9 +80,7 @@ def test_C001_non_lower_case_type(message, exception):
     ),
 )
 def test_C002_one_whiteline_between_subject_and_body(message, exception):
-    __validate_rule(
-        rules.C002_one_whiteline_between_subject_and_body, message, exception
-    )
+    __validate_rule(rules.C002_one_whiteline_between_subject_and_body, message, exception)
 
 
 @pytest.mark.parametrize(
@@ -120,9 +118,7 @@ def test_C004_unknown_tag_type(message, exception):
     ),
 )
 def test_C005_separator_contains_trailing_whitespaces(message, exception):
-    __validate_rule(
-        rules.C005_separator_contains_trailing_whitespaces, message, exception
-    )
+    __validate_rule(rules.C005_separator_contains_trailing_whitespaces, message, exception)
 
 
 @pytest.mark.parametrize(
@@ -195,9 +191,7 @@ def test_C009_missing_description(message, exception):
     ),
 )
 def test_C010_breaking_indicator_contains_whitespacing(message, exception):
-    __validate_rule(
-        rules.C010_breaking_indicator_contains_whitespacing, message, exception
-    )
+    __validate_rule(rules.C010_breaking_indicator_contains_whitespacing, message, exception)
 
 
 @pytest.mark.parametrize(
@@ -238,9 +232,7 @@ def test_C012_missing_type_tag(message, exception):
     ),
 )
 def test_C013_subject_should_not_end_with_punctuation(message, exception):
-    __validate_rule(
-        rules.C013_subject_should_not_end_with_punctuation, message, exception
-    )
+    __validate_rule(rules.C013_subject_should_not_end_with_punctuation, message, exception)
 
 
 @pytest.mark.parametrize(
@@ -336,9 +328,7 @@ def test_C017_subject_contains_review_remarks(message, exception):
     ),
 )
 def test_C018_missing_empty_line_between_subject_and_body(message, exception):
-    __validate_rule(
-        rules.C018_missing_empty_line_between_subject_and_body, message, exception
-    )
+    __validate_rule(rules.C018_missing_empty_line_between_subject_and_body, message, exception)
 
 
 @pytest.mark.parametrize(
@@ -411,7 +401,7 @@ def test_C019_subject_contains_issue_reference(message, exception):
                 Merged-by: Hopic 1.22.1.dev37+g1b1a265
                 """
             ),
-            True
+            True,
         ),
         (
             dedent(
@@ -466,7 +456,7 @@ def test_C020_git_trailer_contains_whitespace(message, exception):
                 Acked-by: Anton Indrawan <Anton.Indrawan@tomtom.com>
             """
             ),
-            False,
+            True,
         ),
         (
             dedent(
@@ -568,6 +558,4 @@ def test_C022_footer_contains_blank_line(message, exception):
     ),
 )
 def test_C023_breaking_change_must_be_first_git_trailer(message, exception):
-    __validate_rule(
-        rules.C023_breaking_change_must_be_first_git_trailer, message, exception
-    )
+    __validate_rule(rules.C023_breaking_change_must_be_first_git_trailer, message, exception)

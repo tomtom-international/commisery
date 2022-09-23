@@ -30,7 +30,7 @@ from commisery.checking import (
     validate_commit_message,
 )
 from commisery.cli import inquirer
-from commisery.commit import CommitMessage
+from commisery.commit import parse_commit_message
 from commisery.config import DEFAULT_ACCEPTED_TAGS, Configuration, get_default_rules
 from commisery.range import check_commit_rev_range
 from commisery.versioning import GitVersion
@@ -351,7 +351,7 @@ def next_version(ctx, target):
     log.debug("Yielding " + str(commits))
     def _check_commits(commits):
         for commit in commits:
-            msg = CommitMessage.from_message(commit if isinstance(commit, str) else commit.message)
+            msg = parse_commit_message(commit if isinstance(commit, str) else commit.message)
             if validate_commit_message(msg, config) == 0:
                 yield msg
 
