@@ -20,8 +20,6 @@ import git
 
 BREAKING_CHANGE_TOKEN = "BREAKING CHANGE"
 
-COMMIT_TYPE = typing.Union["CommitMessage", "ConventionalCommit"]
-
 _Footer = namedtuple("_Footer", ("token", "value"))
 
 

@@ -21,7 +21,7 @@ import subprocess
 import typing
 
 from commisery.config import Configuration
-from commisery.commit import parse_commit_message, COMMIT_TYPE
+from commisery.commit import parse_commit_message, CommitMessage
 from commisery.rules import validate_commit_message_rule
 
 
@@ -45,7 +45,7 @@ def check_commit(commit, config: Configuration):
     return validate_commit_message(commit_message, config)
 
 
-def validate_commit_message(message: COMMIT_TYPE, config: Configuration):
+def validate_commit_message(message: CommitMessage, config: Configuration):
     """Validates the provided commit message against specification"""
     error_count = 0
     for rule in config.rules:
