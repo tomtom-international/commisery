@@ -50,21 +50,15 @@ in the output.
 
 """
     )
-    assert (
-        message.subject
-        == """improvement(config): display config error messages without backtrace"""
-    )
+    assert message.subject == """improvement(config): display config error messages without backtrace"""
 
-    assert (
-        message.lines[2]
-        == """In order to prevent users from thinking they're seeing a bug in Hopic."""
-    )
+    assert message.lines[2] == """In order to prevent users from thinking they're seeing a bug in Hopic."""
 
 
 def test_conventional_scoped_improvement():
     message = parse_commit_message("improvement(config): display config error messages without backtrace")
 
-    assert message.type == "improvement"
+    assert message.type_tag == "improvement"
     assert message.scope == "config"
     assert message.description == "display config error messages without backtrace"
     assert not message.has_breaking_change()
@@ -78,7 +72,7 @@ def test_conventional_scope_with_space():
 
 def test_conventional_fix():
     message = parse_commit_message("fix: use the common ancestor of the source and target commit for autosquash")
-    assert message.type == "fix"
+    assert message.type_tag == "fix"
     assert message.scope is None
     assert not message.has_breaking_change()
     assert not message.has_new_feature()
@@ -87,7 +81,7 @@ def test_conventional_fix():
 
 def test_conventional_new_feature():
     message = parse_commit_message("""feat: make execution possible with 'hopic' as command""")
-    assert message.type == "feat"
+    assert message.type_tag == "feat"
     assert message.scope is None
     assert not message.has_breaking_change()
     assert message.has_new_feature()
@@ -104,7 +98,7 @@ BREAKING-CHANGE: "${WORKSPACE}/cfg.yml" is no longer the default location
   looked at.
 """
     )
-    assert message.type == "chore"
+    assert message.type_tag == "chore"
     assert message.scope is None
     assert message.has_breaking_change()
     assert not message.has_new_feature()
@@ -115,7 +109,7 @@ BREAKING-CHANGE: "${WORKSPACE}/cfg.yml" is no longer the default location
 
 def test_conventional_subject_break():
     message = parse_commit_message("""chore!: delete deprecated 'ci-driver' command""")
-    assert message.type == "chore"
+    assert message.type_tag == "chore"
     assert message.scope is None
     assert message.has_breaking_change()
     assert not message.has_new_feature()
@@ -124,7 +118,7 @@ def test_conventional_subject_break():
 
 def test_conventional_subject_breaking_fix():
     message = parse_commit_message("""fix!: take parameter as unsigned instead of signed int""")
-    assert message.type == "fix"
+    assert message.type_tag == "fix"
     assert message.scope is None
     assert message.has_breaking_change()
     assert not message.has_new_feature()
@@ -133,7 +127,7 @@ def test_conventional_subject_breaking_fix():
 
 def test_conventional_subject_breaking_new_feature():
     message = parse_commit_message("feat!: support multiple non-global current working directories")
-    assert message.type == "feat"
+    assert message.type_tag == "feat"
     assert message.scope is None
     assert message.has_breaking_change()
     assert message.has_new_feature()
@@ -142,7 +136,7 @@ def test_conventional_subject_breaking_new_feature():
 
 def test_conventional_fixup_fix():
     message = parse_commit_message("fixup! fix: only restore mtime for regular files and symlinks")
-    assert message.type == "fix"
+    assert message.type_tag == "fix"
     assert message.scope is None
     assert message.description == "only restore mtime for regular files and symlinks"
     assert not message.has_breaking_change()
@@ -164,7 +158,8 @@ Implements: PIPE-123 through the obliviator
 Acked-by: Alice <alice@example.com>
 Merged-by: Hopic 1.21.2
 Acked-by: Bob <bob@example.com>
-""")
+"""
+    )
 
     assert tuple(tuple(footer) for footer in message.footers) == (
         ("BREAKING CHANGE", ("something changed in an unpredicted way")),
@@ -192,8 +187,9 @@ Acked-by: Joost Muller <Joost.Muller@tomtom.com>
 Acked-by: Martijn Leijssen <Martijn.Leijssen@tomtom.com>
 Acked-by: Rene Kempen <Rene.Kempen@tomtom.com>
 Merged-by: Hopic 0.10.2.dev7+g840ca0c
-""")
-    assert message.type == "improvement"
+"""
+    )
+    assert message.type_tag == "improvement"
     assert message.scope == "groovy"
 
     # NOTE: Unfortunately we cannot make a correct judgement for the
@@ -224,4 +220,4 @@ Merged-by: Hopic 0.10.2.dev7+g840ca0c
     ),
 )
 def test_commit_types(msg, expectation):
-    assert parse_commit_message(msg, strict=False).type == expectation
+    assert parse_commit_message(msg, strict=False).type_tag == expectation

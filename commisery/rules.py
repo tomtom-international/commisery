@@ -25,6 +25,7 @@ from commisery.config import Configuration, get_default_rules
 
 # pylint: disable=C0103  # disable `invalid-name`-checking
 
+
 @dataclass
 class RuleResult:
     passed: bool
@@ -36,7 +37,7 @@ def _is_acceptable_merge_message(message: COMMIT_TYPE):
 
 
 def C001_non_lower_case_type(message: COMMIT_TYPE, config: Configuration):
-    """The commit message's tag type should be in lower case"""
+    """The commit message's type tag should be in lower case"""
     # No need to verify merge commits
     if _is_acceptable_merge_message(message):
         return
@@ -47,12 +48,12 @@ def C001_non_lower_case_type(message: COMMIT_TYPE, config: Configuration):
     except logging.Error:
         return
 
-    if not message.type.islower():
+    if not message.type_tag.islower():
         raise logging.Error(
             message=C001_non_lower_case_type.__doc__,
             line=message.subject,
-            column_number=logging.Range(message.subject.find(message.type) + 1, len(message.type)),
-            expectations=message.type.lower(),
+            column_number=logging.Range(message.subject.find(message.type_tag) + 1, len(message.type_tag)),
+            expectations=message.type_tag.lower(),
         )
 
 
@@ -106,14 +107,14 @@ def C004_unknown_tag_type(message: COMMIT_TYPE, config: Configuration):
     except logging.Error:
         return
 
-    if message.type not in config.tags:
-        closest_match = difflib.get_close_matches(message.type.lower(), config.tags, n=1)
+    if message.type_tag not in config.tags:
+        closest_match = difflib.get_close_matches(message.type_tag.lower(), config.tags, n=1)
         closest_match = closest_match[0] if closest_match else f"{', '.join(config.tags)}"
 
         raise logging.Error(
             message=f"{C004_unknown_tag_type.__doc__}. Use one of: feat, fix, {', '.join(config.tags)}",
             line=message.subject,
-            column_number=logging.Range(message.subject.find(message.type) + 1, len(message.type)),
+            column_number=logging.Range(message.subject.find(message.type_tag) + 1, len(message.type_tag)),
             expectations=closest_match,
         )
 
@@ -248,7 +249,7 @@ def C011_only_single_breaking_indicator(message: COMMIT_TYPE, _: Configuration):
 def C012_missing_type_tag(message: COMMIT_TYPE, _: Configuration):
     """The commit message's subject requires a type"""
 
-    if not message.type:
+    if not message.type_tag:
         raise logging.Error(
             message=C012_missing_type_tag.__doc__,
             line=message.subject,
@@ -300,13 +301,13 @@ def C015_no_repeated_tags(message: COMMIT_TYPE, config: Configuration):
     except logging.Error:
         return
 
-    if message.description.lower().startswith(message.type.lower()):
+    if message.description.lower().startswith(message.type_tag.lower()):
         raise logging.Error(
             message=C015_no_repeated_tags.__doc__,
             line=message.subject,
             column_number=logging.Range(
                 start=message.subject.find(message.description) + 1,
-                range=len(message.type),
+                range=len(message.type_tag),
             ),
         )
 
@@ -457,7 +458,7 @@ def C023_breaking_change_must_be_first_git_trailer(message: COMMIT_TYPE, _: Conf
 
 
 def validate_strict_default_rules(commit: COMMIT_TYPE):
-    """ Validates all default rules and raises a ParsingError if they do not all pass """
+    """Validates all default rules and raises a ParsingError if they do not all pass"""
     config = Configuration()
     error_messages = ""
     error_count = 0

@@ -156,7 +156,7 @@ class CommitMessage(object):
         return None
 
     @property
-    def type(self):
+    def type_tag(self):
         return None
 
     @property
@@ -248,7 +248,7 @@ class ConventionalCommit(CommitMessage):
             raise ParsingError(
                 f"commit message's subject ({self.subject!r}) not formatted according to Conventional Commits ({self.conv_subject_re.pattern})"
             )
-        self.type_tag = m.group("type_tag")
+        self._type_tag = m.group("type_tag")
         self._scope = m.group("scope")
         self._breaking_subject = m.group("breaking")
         self._description = m.group("description")
@@ -267,8 +267,8 @@ class ConventionalCommit(CommitMessage):
         return self._separator
 
     @property
-    def type(self):
-        return self.type_tag
+    def type_tag(self):
+        return self._type_tag
 
     @property
     def scope(self):
@@ -293,10 +293,10 @@ class ConventionalCommit(CommitMessage):
         return False
 
     def has_new_feature(self):
-        return self.type_tag.lower() == "feat"
+        return self._type_tag.lower() == "feat"
 
     def has_fix(self):
-        return self.type_tag.lower() == "fix"
+        return self._type_tag.lower() == "fix"
 
 
 def parse_commit_message(
@@ -313,6 +313,7 @@ def parse_commit_message(
             commit = ConventionalCommit(message)
             if strict:
                 from commisery.rules import validate_strict_default_rules
+
                 validate_strict_default_rules(commit)
         except ParsingError:
             if strict:
