@@ -24,13 +24,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Set-up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.8'
-
       - name: Commisery
-        uses: tomtom-international/commisery-action@v1
+        uses: tomtom-international/commisery-action@v2
         with:
           token: ${{ github.token }}
-          pull_request: ${{ github.event.number }}
