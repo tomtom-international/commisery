@@ -28,10 +28,8 @@ except ImportError:
     import importlib_metadata as metadata
 
 
-if sys.version_info >= (3, 8):
-    _eps = metadata.entry_points().select(group="console_scripts")
-else:
-    _eps = metadata.entry_points()["console_scripts"]
+_eps = metadata.entry_points().select(group="console_scripts")
+
 commisery_range_cli = [ep for ep in _eps if ep.name == "cm"][0].load()
 
 

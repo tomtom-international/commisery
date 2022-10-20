@@ -37,10 +37,7 @@ try:
         (int(x) if re.match("^[0-9]+$", x) else x) for x in metadata.version("hopic").split(".")
     )
 
-    if sys.version_info >= (3, 8):
-        _eps = metadata.entry_points().select(group="console_scripts")
-    else:
-        _eps = metadata.entry_points()["console_scripts"]
+    _eps = metadata.entry_points().select(group="console_scripts")
     hopic_cli = [ep for ep in _eps if ep.name == "hopic"][0].load()
     from click.testing import CliRunner
     import git
