@@ -284,13 +284,19 @@ def next_version(ctx, target):
     valid_repo = False
     try:
         repo = Repo(search_parent_directories=True)
-        if repo.active_branch.is_valid():
+        try:
+            if repo.bare:
+                log.error("Current Git repo is bare")
+            elif repo.active_branch.is_detached() or repo.active_branch.is_valid():
+                valid_repo = True
+            else:
+                log.warning("Current Git branch is not valid")
+        except TypeError:  # Raised on detached heads
             valid_repo = True
+        except ValueError:  # Raised on empty repositories
+            valid_repo = False
     except InvalidGitRepositoryError:
         pass
-    except TypeError:
-        log.error("Could not resolve HEAD; is HEAD detached?")
-        ctx.exit(1)
 
     if not valid_repo:
         log.error(f"Current directory ({os.getcwd()}) is not in a (valid) Git repository")
