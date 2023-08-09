@@ -294,7 +294,7 @@ class ConventionalCommit(CommitMessage):
         return self._type_tag.lower() == "feat"
 
     def has_fix(self):
-        return self._type_tag.lower() == "fix"
+        return self._type_tag.lower() in ["fix", "perf"]
 
 
 def parse_commit_message(
