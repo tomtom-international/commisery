@@ -56,7 +56,7 @@ setup(
     ),
     extras_require={
       'github': [
-        'PyGithub>=1.53,<2',
+        'PyGithub>=1.53,<3',
       ],
     },
     use_scm_version={"relative_to": __file__},
