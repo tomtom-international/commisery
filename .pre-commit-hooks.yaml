@@ -1,0 +1,8 @@
+- id: commisery
+  name: Conventional commit check
+  description: Check commit message whether adhere to Conventional Commits.
+  entry: cm check
+  language: python
+  pass_filenames: false
+  always_run: true
+  stages: [commit-msg]
