@@ -111,6 +111,7 @@ The bumping behavior is as follows:
  - breaking changes bump major
  - `feat` types bump minor
  - `fix` types bump patch
+ - `perf` types bump patch
 
 If no bumping commits are found since the latest tag, `cm next-version` will return an empty string on standard output.
 
