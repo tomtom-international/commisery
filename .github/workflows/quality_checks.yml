@@ -25,6 +25,6 @@ jobs:
 
     steps:
       - name: Commisery
-        uses: tomtom-international/commisery-action@v2
+        uses: tomtom-international/commisery-action@v3
         with:
           token: ${{ github.token }}
