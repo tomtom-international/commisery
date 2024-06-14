@@ -138,9 +138,21 @@ fi
 ### (Pre-) Commit hook
 
 You can use `commisery` as a hook in Git to check messages you wrote by creating a `.git/hooks/commit-msg` file with these contents:
+
 ```sh
 #!/bin/sh
 exec commisery-verify-msg "$@"
+```
+
+#### Using Commisery with [pre-commit](https://pre-commit.com)
+
+Add this to your `.pre-commit-config.yaml`:
+
+```yaml
+- repo: https://github.com/tomtom-international/commisery
+  rev: ''  # Use the sha / tag you want to point at
+  hooks:
+    - id: commisery
 ```
 
 ### Configuration
@@ -165,7 +177,7 @@ disable:
   - C018
 ```
 
-| Item | Default value |Description | 
+| Item | Default value |Description |
 | --- | --- | --- |
 | `max-subject-length` | `80` | The maximum length of the subject of the commit message |
 | `tags` | `fix`, `feat`, `build`, `chore`, `ci`, `docs`, `perf`, `refactor`, `revert`, `style`, `test`, `improvement` | Additional tags (including description). These tags will not result in a version bump.<br><br>**NOTE:** The tags `feat` and `fix` will automatically be provided |
