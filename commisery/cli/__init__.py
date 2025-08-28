@@ -30,7 +30,7 @@ from commisery.checking import (
     validate_commit_message,
 )
 from commisery.cli import inquirer
-from commisery.commit import parse_commit_message
+from commisery.commit import ConventionalCommit, parse_commit_message
 from commisery.config import DEFAULT_ACCEPTED_TAGS, Configuration, get_default_rules
 from commisery.range import check_commit_rev_range
 from commisery.versioning import GitVersion
@@ -100,9 +100,7 @@ def overview(ctx):
 
     print("Commisery Validation rules")
     print("--------------------------")
-    print(
-        "[\033[92mo\033[0m]: \033[90mrule is enabled\033[0m, [\033[91mx\033[0m]: \033[90mrule has been disabled\033[0m"  # pylint: disable=line-too-long
-    )
+    print("[\033[92mo\033[0m]: \033[90mrule is enabled\033[0m, [\033[91mx\033[0m]: \033[90mrule has been disabled\033[0m")  # pylint: disable=line-too-long
     print()
     for rule, value in config.rules.items():
         status = "\033[92mo\033[0m" if value.get("enabled") else "\033[91mx\033[0m"
@@ -120,8 +118,13 @@ def overview(ctx):
 @click.option("-s", "--scope", help="Conventional commit scope")
 @click.option("-d", "--description", help="Commit description")
 @click.option("-b", "--breaking-change", is_flag=True, help="This is a breaking change")
+@click.option(
+    "--no-confirm",
+    is_flag=True,
+    help="Skip confirmation prompt when using CLI arguments",
+)
 @click.pass_context
-def commit(ctx, type, scope, description, breaking_change):
+def commit(ctx, type, scope, description, breaking_change, no_confirm):
     """Creates a conventional commit"""
     ctx.ensure_object(dict)
     config = ctx.obj["CONFIG"]
@@ -141,7 +144,8 @@ def commit(ctx, type, scope, description, breaking_change):
                 )
             )
 
-        if not scope:
+        # Only ask for scope if not provided and we're in interactive mode
+        if not scope and not (type and description):
             questions.append(inquirer.Input(name="scope", message="Specify the scope (Optional)"))
 
         if not description:
@@ -149,14 +153,16 @@ def commit(ctx, type, scope, description, breaking_change):
                 inquirer.Input(name="description", message="Specify the subject of the commit")
             )
 
-        questions.append(
-            inquirer.Editor(
-                name="body",
-                message="Describe the commit in more details (ESC+ENTER to quit)",
+        # Only prompt for body if we're in fully interactive mode (no CLI args provided)
+        if not (type and description):
+            questions.append(
+                inquirer.Editor(
+                    name="body",
+                    message="Describe the commit in more details (ESC+ENTER to quit)",
+                )
             )
-        )
 
-        if not breaking_change:
+        if not breaking_change and not (type and description):
             questions.append(
                 inquirer.Choice(
                     name="breaking_change",
@@ -166,43 +172,74 @@ def commit(ctx, type, scope, description, breaking_change):
                 )
             )
 
-        answers = inquirer.prompt(questions)
+        # Skip prompting entirely if we have all required info from CLI
+        if type and description and not questions:
+            answers = {}
+        else:
+            try:
+                answers = inquirer.prompt(questions)
+                # Handle user cancellation (Ctrl+C)
+                if answers is None:
+                    ctx.exit(1)
+            except (KeyboardInterrupt, EOFError):
+                ctx.exit(1)
 
-        answers["scope"] = answers.get("scope") if answers.get("scope", None) else None
-        answers["type"] = answers.get("type").split(":")[0]
-        answers["breaking_change"] = "!" if answers.get("breaking_change", "No") == "Yes" else ""
+        # Merge command line arguments with prompted answers
+        final_answers = {}
+        final_answers["type"] = type if type else answers.get("type", "").split(":")[0]
+        final_answers["scope"] = scope if scope else (answers.get("scope") if answers.get("scope") else None)
+        final_answers["description"] = description if description else answers.get("description", "")
+        final_answers["breaking_change"] = "!" if breaking_change else ("!" if answers.get("breaking_change", "No") == "Yes" else "")
 
         if answers.get("body"):
-            answers["body"] = ("\n" + answers.get("body")).splitlines()
+            final_answers["body"] = "\n\n" + str(answers.get("body"))
+        else:
+            final_answers["body"] = ""
 
-        return CommitMessage(**answers, separator=": ")
+        # Build conventional commit message
+        scope_part = f"({final_answers['scope']})" if final_answers["scope"] else ""
+        message = f"{final_answers['type']}{scope_part}{final_answers['breaking_change']}: {final_answers['description']}{final_answers['body']}"
+
+        return ConventionalCommit(message)
 
     confirmation = False
     while not confirmation:
         commit_message = _read_commit_message()
 
-        confirmation = inquirer.prompt(
-            [
-                inquirer.Confirm(
-                    name="confirmation",
-                    message=f"""\
+        # Skip confirmation if --no-confirm is used and we have required CLI args
+        if no_confirm and type and description:
+            confirmation = True
+            print(f"Creating commit: {commit_message.message}")
+        else:
+            try:
+                result = inquirer.prompt(
+                    [
+                        inquirer.Confirm(
+                            name="confirmation",
+                            message=f"""\
 Commit message:
 
 ---
-{commit_message}
+{commit_message.message}
 ---
 
 Is this correct?""",
-                    default=True,
+                            default=True,
+                        )
+                    ]
                 )
-            ]
-        ).get("confirmation")
+                # Handle user cancellation (Ctrl+C)
+                if result is None:
+                    ctx.exit(1)
+                confirmation = result.get("confirmation")
+            except (KeyboardInterrupt, EOFError):
+                ctx.exit(1)
 
     print(os.linesep)
 
     if validate_commit_message(commit_message, config) == 0:
         repo = Repo(os.getcwd(), search_parent_directories=True)
-        repo.index.commit(message=str(commit_message))
+        repo.index.commit(message=commit_message.message)
 
 
 @main.command()
@@ -240,10 +277,10 @@ def check(ctx, target):
             )
             > 1
         ):
-            log.debug(f"Handling as range: %s", target_str)
+            log.debug("Handling as range: %s", target_str)
             result = check_commit_rev_range(target, config=config)
         else:
-            log.debug(f"Handling as commitish: %s", target_str)
+            log.debug("Handling as commitish: %s", target_str)
             result = check_commit(target_str, config=config)
     except subprocess.CalledProcessError:
         result = 1
@@ -355,6 +392,7 @@ def next_version(ctx, target):
     config.silent = True
 
     log.debug("Yielding " + str(commits))
+
     def _check_commits(commits):
         for commit in commits:
             msg = parse_commit_message(commit if isinstance(commit, str) else commit.message)

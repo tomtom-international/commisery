@@ -14,12 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Helper methods for inquirer2"""
+"""Helper methods for inquirer"""
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from typing import Optional, Sequence
 
-import inquirer2.prompt
+import inquirer
 
 
 @dataclass
@@ -63,4 +63,34 @@ class Confirm:
 
 def prompt(questions) -> dict:
     """Prompt questions on the CLI"""
-    return inquirer2.prompt.prompt([asdict(question) for question in questions])
+    # Convert our dataclass questions to inquirer question objects
+    inquirer_questions = []
+
+    for question in questions:
+        if question.type == "list":
+            inquirer_questions.append(
+                inquirer.List(
+                    name=question.name,
+                    message=question.message,
+                    choices=question.choices,
+                    default=question.default,
+                )
+            )
+        elif question.type == "input":
+            inquirer_questions.append(
+                inquirer.Text(name=question.name, message=question.message)
+            )
+        elif question.type == "editor":
+            inquirer_questions.append(
+                inquirer.Editor(name=question.name, message=question.message)
+            )
+        elif question.type == "confirm":
+            inquirer_questions.append(
+                inquirer.Confirm(
+                    name=question.name,
+                    message=question.message,
+                    default=question.default,
+                )
+            )
+
+    return inquirer.prompt(inquirer_questions)
